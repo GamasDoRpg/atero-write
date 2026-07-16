@@ -1,0 +1,66 @@
+/*
+  Coloque data-access-state="checking" no <html>
+  para evitar que a interface apareça antes da
+  autorização.
+*/
+
+html[data-access-state="checking"] .app-shell {
+  visibility: hidden;
+}
+
+html[data-access-state="authorized"] .app-shell {
+  visibility: visible;
+}
+
+.atero-access-screen {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px;
+  text-align: center;
+  font-family:
+    Inter,
+    Arial,
+    sans-serif;
+  background: #f7f7f5;
+  color: #181818;
+}
+
+.atero-access-screen h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+.atero-access-screen p {
+  max-width: 520px;
+  margin: 0;
+  color: #5e5e5e;
+  line-height: 1.6;
+}
+
+.atero-access-mark {
+  width: 48px;
+  height: 4px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.atero-access-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #181818;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
