@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-access-state="checking">
 <head>
   <meta charset="UTF-8">
 
@@ -35,9 +35,43 @@
     rel="stylesheet"
     href="css/write.css"
   >
+
+  <link
+    rel="stylesheet"
+    href="css/access-guard.css?v=1"
+  >
 </head>
 
 <body>
+
+  <main
+    class="atero-access-screen"
+    id="ateroAccessLoading"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div class="atero-access-mark"></div>
+
+    <h1>Verificando acesso</h1>
+
+    <p>
+      Estamos confirmando sua Conta Atero e o acesso ao Atero Write.
+    </p>
+  </main>
+
+  <noscript>
+    <main class="atero-access-screen">
+      <div class="atero-access-mark"></div>
+
+      <h1>JavaScript necessário</h1>
+
+      <p>
+        Ative o JavaScript para acessar o Atero Write.
+      </p>
+    </main>
+  </noscript>
+
+  <div class="app-shell">
 
   <header class="topbar">
 
@@ -543,10 +577,116 @@
   </footer>
 
 
-  <script src="js/editor-data-core.js?v=1"></script>
-  <script src="js/editor-data.js?v=2"></script>
-  <script src="js/project-data.js?v=1"></script>
-  <script src="js/write.js?v=3"></script>
+  </div>
+
+  <script type="module">
+    import {
+      exigirAplicativoAtero
+    } from "./js/access-guard.js?v=1";
+
+
+    function carregarScript(src) {
+      return new Promise(
+        (resolver, rejeitar) => {
+          const script =
+            document.createElement("script");
+
+          script.src = src;
+          script.async = false;
+
+          script.addEventListener(
+            "load",
+            resolver,
+            {
+              once: true
+            }
+          );
+
+          script.addEventListener(
+            "error",
+            () => {
+              rejeitar(
+                new Error(
+                  `Não foi possível carregar ${src}.`
+                )
+              );
+            },
+            {
+              once: true
+            }
+          );
+
+          document.body.append(script);
+        }
+      );
+    }
+
+
+    async function iniciarWrite() {
+      const acesso =
+        await exigirAplicativoAtero({
+          appId: "write",
+          nomeFallback: "Atero Write"
+        });
+
+      if (!acesso) {
+        return;
+      }
+
+      const telaCarregamento =
+        document.querySelector(
+          "#ateroAccessLoading"
+        );
+
+      telaCarregamento?.remove();
+
+      window.ateroAccess = acesso;
+
+      const scripts = [
+        "js/editor-data-core.js?v=1",
+        "js/editor-data.js?v=2",
+        "js/project-data.js?v=1",
+        "js/write.js?v=3"
+      ];
+
+      try {
+        for (const src of scripts) {
+          await carregarScript(src);
+        }
+      } catch (erro) {
+        console.error(
+          "Erro ao iniciar o Atero Write:",
+          erro
+        );
+
+        document.documentElement.dataset
+          .accessState = "error";
+
+        document.body.innerHTML = `
+          <main class="atero-access-screen">
+            <div class="atero-access-mark"></div>
+
+            <h1>Não foi possível abrir o Write</h1>
+
+            <p>
+              Os arquivos do aplicativo não puderam ser carregados.
+            </p>
+
+            <button
+              class="atero-access-action"
+              type="button"
+              onclick="window.location.reload()"
+            >
+              Tentar novamente
+            </button>
+          </main>
+        `;
+      }
+    }
+
+
+    await iniciarWrite();
+  </script>
 
 </body>
 </html>
