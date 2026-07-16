@@ -1,0 +1,971 @@
+/* =========================================================
+   ATERO WRITE — MODO ROTEIRO
+   Complemento para editor.css.
+   ========================================================= */
+
+:root {
+  --screenplay-revision-color: #ffffff;
+  --screenplay-accent: #e63946;
+  --screenplay-font: "Courier New", Courier, monospace;
+}
+
+/* ---------- identidade do draft ---------- */
+
+.screenplay-draft-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 360px);
+  min-height: 20px;
+  margin-top: 2px;
+  padding: 2px 8px 2px 5px;
+  overflow: hidden;
+  color: #696969;
+  background: rgba(255,255,255,.76);
+  border: 1px solid rgba(20,20,20,.075);
+  border-radius: 999px;
+  font-size: .53rem;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color .14s ease, border-color .14s ease, background-color .14s ease;
+}
+
+.screenplay-draft-badge:hover {
+  color: var(--write-red, #e63946);
+  background: #fff;
+  border-color: var(--write-red-border, rgba(230,57,70,.22));
+}
+
+.screenplay-draft-swatch {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(20,20,20,.17);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(20,20,20,.025);
+}
+
+/* ---------- ribbon do roteiro ---------- */
+
+.screenplay-mode-toggle.is-active,
+.screenplay-ribbon-action.is-active {
+  color: var(--write-red, #e63946);
+  background: var(--write-red-soft, #fff1f2);
+  border-color: var(--write-red-border, rgba(230,57,70,.22));
+}
+
+.screenplay-element-select {
+  width: 150px;
+}
+
+.screenplay-page-select {
+  width: 126px;
+}
+
+.screenplay-quick-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.screenplay-mini-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 31px;
+  padding: 0 8px;
+  color: #666;
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(20,20,20,.095);
+  border-radius: 8px;
+  font-family: var(--screenplay-font);
+  font-size: .58rem;
+  font-weight: 750;
+  white-space: nowrap;
+  transition: color .13s ease, background-color .13s ease, border-color .13s ease, transform .13s ease;
+}
+
+.screenplay-mini-button:hover,
+.screenplay-mini-button.is-active {
+  color: var(--write-red, #e63946);
+  background: var(--write-red-soft, #fff1f2);
+  border-color: var(--write-red-border, rgba(230,57,70,.22));
+}
+
+.screenplay-mini-button:active {
+  transform: scale(.97);
+}
+
+.screenplay-toolbar-note {
+  max-width: 180px;
+  color: #929292;
+  font-size: .51rem;
+  line-height: 1.35;
+}
+
+.screenplay-toolbar-note kbd {
+  padding: 1px 4px;
+  font-size: .47rem;
+}
+
+/* ---------- painel lateral ---------- */
+
+.screenplay-sidebar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  margin-bottom: 10px;
+}
+
+.screenplay-sidebar-grid div {
+  min-width: 0;
+  padding: 9px;
+  background: rgba(248,248,248,.88);
+  border: 1px solid rgba(20,20,20,.055);
+  border-radius: 9px;
+}
+
+.screenplay-sidebar-grid span,
+.screenplay-sidebar-grid strong {
+  display: block;
+}
+
+.screenplay-sidebar-grid span {
+  margin-bottom: 4px;
+  color: #999;
+  font-size: .49rem;
+}
+
+.screenplay-sidebar-grid strong {
+  overflow: hidden;
+  color: #3e3e3e;
+  font-family: var(--screenplay-font);
+  font-size: .61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- barra de status ---------- */
+
+.screenplay-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 8px;
+  color: #777;
+  background: rgba(248,248,248,.9);
+  border: 1px solid rgba(20,20,20,.06);
+  border-radius: 8px;
+  font-family: var(--screenplay-font);
+  font-size: .54rem;
+  white-space: nowrap;
+}
+
+.screenplay-status-separator {
+  color: #c0c0c0;
+}
+
+/* ---------- modo de documento ---------- */
+
+.screenplay-mode .editor-page {
+  background:
+    linear-gradient(var(--screenplay-revision-color), var(--screenplay-revision-color)) top right / 5px 100% no-repeat,
+    var(--editor-page-color, #fff);
+}
+
+.screenplay-mode .page-body,
+.screenplay-mode .flow-editor,
+.screenplay-mode .split-editor {
+  font-family: var(--screenplay-font);
+  font-size: 12pt;
+  line-height: 1.05;
+}
+
+.screenplay-element {
+  position: relative;
+  max-width: 100%;
+  min-height: 1.05em;
+  overflow: visible;
+  font-family: var(--screenplay-font);
+  font-size: 12pt;
+  line-height: 1.05;
+  overflow-wrap: break-word;
+}
+
+.screenplay-element:empty::before,
+.screenplay-element:has(> br:only-child)::before {
+  content: attr(data-screenplay-placeholder);
+  color: rgba(20,20,20,.25);
+  pointer-events: none;
+}
+
+.screenplay-active-element {
+  background: linear-gradient(90deg, rgba(230,57,70,.055), transparent 72%);
+  box-shadow: -3px 0 0 rgba(230,57,70,.33);
+}
+
+.screenplay-action {
+  margin: 0 0 12pt;
+}
+
+.screenplay-scene-heading {
+  margin: 12pt 0 6pt;
+  padding-right: 34px;
+  padding-left: 34px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+
+.screenplay-character {
+  margin: 12pt 1.15in 0 2.2in;
+  text-transform: uppercase;
+}
+
+.screenplay-parenthetical {
+  margin: 0 1.65in 0 1.55in;
+}
+
+.screenplay-dialogue {
+  margin: 0 1.45in 12pt .95in;
+}
+
+.screenplay-transition {
+  margin: 12pt 0 12pt 3.35in;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.screenplay-shot {
+  margin: 12pt 0 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.screenplay-centered {
+  margin: 12pt 0;
+  text-align: center;
+}
+
+.screenplay-normal {
+  position: relative;
+}
+
+/* numeração real de cenas nas duas pontas */
+
+.screenplay-mode .screenplay-scene-heading[data-scene-number]::before,
+.screenplay-mode .screenplay-scene-heading[data-scene-number]::after {
+  position: absolute;
+  top: 0;
+  color: #777;
+  font-weight: 400;
+  font-size: 9pt;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.screenplay-mode .screenplay-scene-heading[data-scene-number]::before {
+  content: attr(data-scene-number);
+  left: 0;
+}
+
+.screenplay-mode .screenplay-scene-heading[data-scene-number]::after {
+  content: attr(data-scene-number);
+  right: 0;
+}
+
+/* continuação automática de diálogo entre páginas */
+
+.screenplay-dialogue[data-screenplay-more="true"]::after {
+  content: "(MAIS)";
+  display: block;
+  margin-top: 5pt;
+  text-align: center;
+  font-family: var(--screenplay-font);
+  font-size: 10pt;
+}
+
+.screenplay-dialogue[data-continued-character]::before {
+  content: attr(data-continued-character);
+  display: block;
+  margin: 0 .2in 2pt 1.15in;
+  font-family: var(--screenplay-font);
+  font-size: 12pt;
+  text-transform: uppercase;
+}
+
+/* ---------- capa ---------- */
+
+.screenplay-title-page {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #151515;
+  background: transparent;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.screenplay-title-name {
+  overflow-wrap: anywhere;
+}
+
+.screenplay-title-contact,
+.screenplay-title-copyright,
+.screenplay-title-draft {
+  white-space: normal;
+}
+
+.editor-page:has(.screenplay-title-page) .page-header,
+.editor-page:has(.screenplay-title-page) .page-footer,
+.editor-page:has(.screenplay-title-page) .page-number-badge {
+  display: none !important;
+}
+
+.screenplay-title-page-break {
+  display: none !important;
+}
+
+/* ---------- autocomplete de personagens ---------- */
+
+.screenplay-character-suggestions {
+  position: fixed;
+  z-index: 1700;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  max-height: 220px;
+  padding: 6px;
+  overflow-y: auto;
+  background: rgba(255,255,255,.98);
+  border: 1px solid rgba(20,20,20,.11);
+  border-radius: 12px;
+  box-shadow: 0 18px 54px rgba(20,20,20,.19);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.screenplay-character-suggestions button {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  overflow: hidden;
+  color: #555;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-family: var(--screenplay-font);
+  font-size: .68rem;
+  font-weight: 700;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screenplay-character-suggestions button:hover,
+.screenplay-character-suggestions button.is-active {
+  color: var(--write-red, #e63946);
+  background: var(--write-red-soft, #fff1f2);
+}
+
+/* ---------- diálogo de configuração ---------- */
+
+.screenplay-settings-dialog {
+  width: min(calc(100% - 32px), 720px);
+}
+
+.screenplay-dialog-revision {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.screenplay-dialog-revision::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  background: var(--screenplay-revision-color);
+  border: 1px solid rgba(20,20,20,.15);
+  border-radius: 50%;
+}
+
+.screenplay-dialog-actions {
+  flex-wrap: wrap;
+}
+
+.screenplay-dialog-actions .screenplay-title-page-action {
+  margin-right: auto;
+}
+
+/* itens do menu só existem visualmente no modo roteiro */
+
+body:not(.screenplay-mode) [data-screenplay-context] {
+  display: none !important;
+}
+
+/* ---------- leitura e exportação ---------- */
+
+.read-mode .screenplay-active-element,
+.atero-pdf-capture-host .screenplay-active-element {
+  background: transparent;
+  box-shadow: none;
+}
+
+.atero-pdf-capture-host .editor-page {
+  background: var(--editor-page-color, #fff);
+}
+
+/* ---------- responsividade ---------- */
+
+@media (max-width: 980px) {
+  .screenplay-toolbar-note {
+    display: none;
+  }
+
+  .screenplay-draft-badge {
+    max-width: 250px;
+  }
+}
+
+@media (max-width: 700px) {
+  .screenplay-character,
+  .screenplay-parenthetical,
+  .screenplay-dialogue,
+  .screenplay-transition {
+    margin-right: .35in !important;
+    margin-left: .35in !important;
+  }
+
+  .screenplay-draft-badge {
+    display: none;
+  }
+
+  .screenplay-status {
+    display: none;
+  }
+
+  .screenplay-settings-dialog {
+    width: calc(100% - 20px);
+  }
+}
+
+@media print {
+  .screenplay-active-element {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .screenplay-mode .editor-page {
+    background: var(--editor-page-color, #fff) !important;
+  }
+}
+
+/* =========================================================
+   RIBBON COMPACTA — AJUSTE DE DENSIDADE
+   Mantém o modo roteiro completo sem ocupar metade da tela.
+   ========================================================= */
+
+/* Reduz o cabeçalho apenas quando a aba Roteiro está aberta. */
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-topbar-main {
+  min-height: 58px;
+  padding-block: 5px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-brand {
+  min-height: 40px;
+  padding-block: 3px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-brand-logo {
+  width: 32px;
+  height: 32px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .document-identity {
+  min-height: 42px;
+  padding-block: 3px 4px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .document-title-input {
+  min-height: 23px;
+  font-size: .82rem;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-topbar-actions {
+  padding: 3px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-icon-button,
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-exit-button {
+  min-height: 33px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .editor-icon-button {
+  width: 33px;
+}
+
+/* O badge do draft divide a segunda linha com o status, em vez de criar
+   uma terceira linha inteira no cabeçalho. */
+.screenplay-mode .document-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.screenplay-mode .document-title-input {
+  grid-column: 1 / -1;
+}
+
+.screenplay-mode .save-status {
+  grid-column: 1;
+  justify-self: end;
+}
+
+.screenplay-mode .screenplay-draft-badge {
+  grid-column: 2;
+  min-height: 17px;
+  margin-top: 0;
+  padding: 1px 7px 1px 4px;
+  font-size: .49rem;
+}
+
+.screenplay-mode .screenplay-draft-swatch {
+  width: 7px;
+  height: 7px;
+}
+
+/* Abas um pouco mais baixas quando o roteiro está selecionado. */
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .ribbon-tabs {
+  min-height: 34px;
+  padding-block: 2px;
+}
+
+.editor-topbar:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) .ribbon-tab {
+  min-height: 27px;
+}
+
+/* Ribbon do roteiro em uma única faixa realmente compacta. */
+.ribbon-panel[data-ribbon-panel="screenplay"] {
+  min-height: 57px;
+  padding: 5px 12px 6px;
+  gap: 5px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section {
+  min-height: 45px;
+  padding: 3px 6px;
+  gap: 4px;
+  border-radius: 9px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section-title {
+  font-size: .43rem;
+  letter-spacing: .07em;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-divider.tall {
+  height: 34px;
+  margin-inline: 2px;
+}
+
+/* Os três comandos principais deixam de ser botões verticais grandes. */
+.ribbon-panel[data-ribbon-panel="screenplay"] .ribbon-action {
+  flex-direction: row;
+  gap: 5px;
+  min-width: auto;
+  min-height: 29px;
+  padding: 0 8px;
+  font-size: .5rem;
+  border-radius: 7px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .ribbon-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-group-wide {
+  gap: 3px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-element-select {
+  width: 132px;
+  height: 28px;
+  padding-left: 7px;
+  font-size: .59rem;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-page-select {
+  width: 112px;
+  height: 28px;
+  padding-left: 7px;
+  font-size: .58rem;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-quick-buttons,
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-buttons {
+  gap: 2px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-mini-button {
+  min-width: 36px;
+  height: 27px;
+  padding: 0 6px;
+  border-radius: 7px;
+  font-size: .52rem;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] [data-screenplay-element="character"] {
+  min-width: 49px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] [data-screenplay-scene-prefix="INT./EXT."] {
+  min-width: 55px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] #screenplaySceneNumbersButton,
+.ribbon-panel[data-ribbon-panel="screenplay"] #screenplayPreviousScene,
+.ribbon-panel[data-ribbon-panel="screenplay"] #screenplayNextScene {
+  min-width: auto;
+}
+
+/* Os atalhos deixam de ocupar uma coluna apertada. Viram um botão de ajuda
+   discreto, com tooltip completo ao passar o mouse. */
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note {
+  position: relative;
+  align-self: center;
+  width: 29px;
+  min-width: 29px;
+  max-width: 29px;
+  height: 29px;
+  margin: 0 2px 0 1px;
+  padding: 0;
+  overflow: visible;
+  color: transparent;
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(20,20,20,.095);
+  border-radius: 50%;
+  font-size: 0;
+  line-height: 1;
+  cursor: help;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note kbd {
+  display: none;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note::before {
+  content: "?";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #777;
+  font-family: Arial, sans-serif;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note::after {
+  content: "Tab: próximo elemento  •  Shift + Tab: elemento anterior  •  Enter: avanço inteligente  •  Ctrl + Alt + 1–8: aplicar estilo";
+  position: absolute;
+  z-index: 2200;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 310px;
+  padding: 11px 13px;
+  color: #575757;
+  background: rgba(255,255,255,.985);
+  border: 1px solid rgba(20,20,20,.1);
+  border-radius: 11px;
+  box-shadow: 0 18px 48px rgba(20,20,20,.17);
+  font-family: Arial, sans-serif;
+  font-size: .63rem;
+  font-weight: 620;
+  line-height: 1.55;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity .14s ease, transform .14s ease;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note:hover,
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note:focus-within {
+  color: transparent;
+  background: var(--write-red-soft, #fff1f2);
+  border-color: var(--write-red-border, rgba(230,57,70,.22));
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note:hover::before,
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note:focus-within::before {
+  color: var(--write-red, #e63946);
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note:hover::after,
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note:focus-within::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Atalhos do painel lateral com mais respiro e quebra natural. */
+.screenplay-mode .sidebar-help {
+  padding: 13px 14px;
+}
+
+.screenplay-mode .sidebar-help p {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  row-gap: 3px;
+  line-height: 1.35;
+}
+
+.screenplay-mode .sidebar-help kbd {
+  min-width: 23px;
+  text-align: center;
+}
+
+@media (max-width: 1280px) {
+  .ribbon-panel[data-ribbon-panel="screenplay"] {
+    padding-inline: 8px;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-divider.tall {
+    margin-inline: 0;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-mini-button {
+    padding-inline: 5px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section-title {
+    display: none;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section {
+    min-height: 36px;
+    padding-block: 2px;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note {
+    display: none;
+  }
+}
+
+/* =========================================================
+   ATERO WRITE — ROTEIRO COMPACTO V3
+   Ajuste final de densidade da ribbon.
+   Este bloco prevalece sobre os estilos anteriores.
+   ========================================================= */
+
+/* A faixa do roteiro não deve roubar a área de escrita. */
+.ribbon-panels:has(.ribbon-panel[data-ribbon-panel="screenplay"].is-active) {
+  min-height: 52px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] {
+  align-items: center;
+  gap: 5px;
+  min-height: 52px;
+  max-height: 52px;
+  padding: 5px 10px 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+}
+
+/* Cada grupo vira uma faixa horizontal curta. */
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 3px;
+  min-height: 38px;
+  height: 38px;
+  padding: 3px 5px;
+  border-radius: 9px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section-title,
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-label {
+  display: none;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-divider.tall {
+  height: 28px;
+  margin-inline: 1px;
+}
+
+/* Botões principais deixam de parecer cards altos. */
+.ribbon-panel[data-ribbon-panel="screenplay"] .ribbon-action {
+  flex-direction: row;
+  gap: 5px;
+  min-width: auto;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: .56rem;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .ribbon-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-group-wide {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-element-select {
+  width: 126px;
+  height: 30px;
+  padding-left: 8px;
+  font-size: .59rem;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-page-select {
+  width: 112px;
+  height: 30px;
+  padding-left: 8px;
+  font-size: .57rem;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-quick-buttons,
+.ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-buttons {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-mini-button {
+  min-height: 29px;
+  height: 29px;
+  padding: 0 7px;
+  border-radius: 7px;
+  font-size: .54rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Os atalhos saem da ribbon; continuam disponíveis no painel lateral. */
+.ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-toolbar-note {
+  display: none !important;
+}
+
+/* Topo geral um pouco menor quando o modo roteiro está ativo. */
+.screenplay-mode .editor-topbar-main {
+  min-height: 58px;
+  padding-block: 5px;
+}
+
+.screenplay-mode .editor-brand {
+  min-height: 40px;
+  padding-block: 3px;
+}
+
+.screenplay-mode .editor-brand-logo {
+  width: 31px;
+  height: 31px;
+}
+
+.screenplay-mode .document-identity {
+  min-height: 40px;
+  padding-block: 3px;
+}
+
+.screenplay-mode .editor-topbar-actions {
+  padding: 3px;
+}
+
+.screenplay-mode .editor-icon-button,
+.screenplay-mode .editor-exit-button {
+  min-height: 33px;
+}
+
+.screenplay-mode .editor-icon-button {
+  width: 33px;
+}
+
+.screenplay-mode .ribbon-tabs {
+  min-height: 34px;
+  padding-block: 2px;
+}
+
+.screenplay-mode .ribbon-tab {
+  min-height: 27px;
+  padding-inline: 12px;
+}
+
+/* Atalhos no painel lateral com espaço real. */
+.screenplay-mode .sidebar-help {
+  padding: 15px;
+}
+
+.screenplay-mode .sidebar-help p {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 5px 7px;
+  margin-top: 9px;
+  line-height: 1.42;
+}
+
+.screenplay-mode .sidebar-help kbd {
+  min-width: 26px;
+  text-align: center;
+}
+
+/* Em telas menores, preserva a escrita e deixa a ribbon rolar. */
+@media (max-width: 1180px) {
+  .ribbon-panel[data-ribbon-panel="screenplay"] {
+    padding-inline: 7px;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .ribbon-action span {
+    display: none;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .ribbon-action {
+    width: 31px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .screenplay-mode .editor-topbar-main {
+    min-height: 54px;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] {
+    min-height: 48px;
+    max-height: 48px;
+    padding-block: 4px;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .toolbar-section {
+    min-height: 35px;
+    height: 35px;
+  }
+
+  .ribbon-panel[data-ribbon-panel="screenplay"] .screenplay-mini-button {
+    min-height: 27px;
+    height: 27px;
+    padding-inline: 6px;
+  }
+}

@@ -1,0 +1,360 @@
+/* =========================================================
+   ATERO WRITE — DADOS, IMPORTAÇÃO E SEGURANÇA
+   ========================================================= */
+
+.data-tools-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.atero-data-dialog {
+  width: min(calc(100% - 32px), 680px);
+}
+
+.atero-data-section {
+  margin-top: 14px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid rgba(20, 20, 20, 0.075);
+  border-radius: 14px;
+}
+
+.atero-data-section h3 {
+  margin: 0 0 12px;
+  color: var(--write-black, #151515);
+  font-size: 0.76rem;
+  letter-spacing: -0.01em;
+}
+
+.atero-import-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 126px;
+  padding: 20px;
+  color: var(--write-gray, #656565);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.78));
+  border: 1px dashed rgba(20, 20, 20, 0.2);
+  border-radius: 12px;
+  outline: none;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.atero-import-drop strong {
+  margin-bottom: 6px;
+  color: var(--write-black, #151515);
+  font-size: 0.76rem;
+}
+
+.atero-import-drop span {
+  max-width: 420px;
+  color: var(--write-muted, #969696);
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.atero-import-drop:hover,
+.atero-import-drop:focus-visible,
+.atero-import-drop.is-dragging {
+  background: var(--write-red-soft, #fff1f2);
+  border-color: var(--write-red, #e63946);
+  box-shadow: 0 0 0 4px var(--write-red-border, rgba(230, 57, 70, 0.2));
+  transform: translateY(-1px);
+}
+
+.atero-data-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--write-gray, #656565);
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+.atero-data-field select {
+  min-width: 215px;
+  height: 34px;
+  padding: 0 9px;
+  color: var(--write-black, #151515);
+  background: #fff;
+  border: 1px solid var(--write-border-strong, #d9d9d9);
+  border-radius: 8px;
+  outline: none;
+  font-size: 0.65rem;
+}
+
+.atero-import-status {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: var(--write-muted, #969696);
+  font-size: 0.62rem;
+}
+
+.atero-import-status.is-working { color: #996810; }
+.atero-import-status.is-success { color: #258653; }
+.atero-import-status.is-error { color: var(--write-red, #e63946); }
+
+.atero-data-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.atero-data-actions-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 72px;
+  padding: 13px;
+  color: var(--write-black, #151515);
+  background: #fff;
+  border: 1px solid rgba(20, 20, 20, 0.1);
+  border-radius: 11px;
+  font-size: 0.69rem;
+  font-weight: 760;
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.atero-data-actions-grid button span {
+  margin-top: 5px;
+  color: var(--write-muted, #969696);
+  font-size: 0.57rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.atero-data-actions-grid button:hover {
+  color: var(--write-red, #e63946);
+  background: var(--write-red-soft, #fff1f2);
+  border-color: var(--write-red-border, rgba(230, 57, 70, 0.22));
+  transform: translateY(-1px);
+}
+
+.atero-storage-section p {
+  margin: 8px 0 0;
+  color: var(--write-muted, #969696);
+  font-size: 0.59rem;
+}
+
+.atero-storage-meter {
+  height: 7px;
+  overflow: hidden;
+  background: #e9e9e9;
+  border-radius: 999px;
+}
+
+.atero-storage-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #c82f3d, var(--write-red, #e63946));
+  border-radius: inherit;
+  transition: width 300ms ease;
+}
+
+.atero-data-toasts {
+  position: fixed;
+  z-index: 4000;
+  right: 18px;
+  bottom: 54px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.atero-data-toast {
+  padding: 12px 14px;
+  color: #fff;
+  background: #252525;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  box-shadow: 0 16px 42px rgba(20, 20, 20, 0.2);
+  opacity: 0;
+  transform: translateY(8px);
+  font-size: 0.66rem;
+  line-height: 1.45;
+  pointer-events: auto;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.atero-data-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.atero-data-toast.is-success { background: #237d50; }
+.atero-data-toast.is-warning { background: #8b6115; }
+.atero-data-toast.is-error { background: #a92835; }
+
+.atero-lock-banner {
+  position: fixed;
+  z-index: 3500;
+  right: 18px;
+  bottom: 54px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: min(590px, calc(100vw - 36px));
+  padding: 13px 14px;
+  color: #fff;
+  background: rgba(28, 28, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 13px;
+  box-shadow: 0 18px 55px rgba(20, 20, 20, 0.25);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.atero-lock-banner div {
+  min-width: 0;
+  flex: 1;
+}
+
+.atero-lock-banner strong,
+.atero-lock-banner span {
+  display: block;
+}
+
+.atero-lock-banner strong {
+  font-size: 0.7rem;
+}
+
+.atero-lock-banner span {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.58rem;
+  line-height: 1.4;
+}
+
+.atero-lock-banner button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  color: #fff;
+  background: var(--write-red, #e63946);
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.61rem;
+  font-weight: 760;
+}
+
+.document-lock-readonly .page-body,
+.document-lock-readonly #flowEditor,
+.document-lock-readonly #splitEditor {
+  cursor: default;
+}
+
+.atero-corruption-screen {
+  position: fixed;
+  z-index: 5000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(230, 57, 70, 0.1), transparent 36%),
+    #efefef;
+}
+
+.atero-corruption-card {
+  width: min(620px, 100%);
+  padding: 34px;
+  background: #fff;
+  border: 1px solid rgba(20, 20, 20, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 30px 90px rgba(20, 20, 20, 0.18);
+}
+
+.atero-data-kicker {
+  color: var(--write-red, #e63946);
+  font-size: 0.58rem;
+  font-weight: 840;
+  letter-spacing: 0.12em;
+}
+
+.atero-corruption-card h1 {
+  margin: 10px 0 8px;
+  color: var(--write-black, #151515);
+  font-size: clamp(1.45rem, 4vw, 2.15rem);
+  letter-spacing: -0.045em;
+}
+
+.atero-corruption-card > p {
+  margin: 0;
+  color: var(--write-gray, #656565);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.atero-corruption-card details {
+  margin-top: 18px;
+  padding: 11px 13px;
+  background: #f7f7f7;
+  border-radius: 10px;
+}
+
+.atero-corruption-card summary {
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 730;
+}
+
+.atero-corruption-card pre {
+  max-height: 180px;
+  margin: 10px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 0.62rem;
+}
+
+.atero-corruption-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.atero-corruption-actions button,
+.atero-corruption-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  color: var(--write-black, #151515);
+  background: #fff;
+  border: 1px solid var(--write-border-strong, #d9d9d9);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.atero-corruption-actions .primary {
+  color: #fff;
+  background: var(--write-red, #e63946);
+  border-color: var(--write-red, #e63946);
+}
+
+@media (max-width: 680px) {
+  .atero-data-actions-grid { grid-template-columns: 1fr; }
+  .atero-data-field { align-items: stretch; flex-direction: column; }
+  .atero-data-field select { width: 100%; }
+  .atero-lock-banner { align-items: stretch; flex-direction: column; }
+  .atero-lock-banner button { width: 100%; }
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Atero Write — espaço de projeto.">
+  <meta name="theme-color" content="#ffffff">
+  <title>Projeto — Atero Write</title>
+  <link rel="icon" type="image/png" href="assets/logos/write.png">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/projeto.css?v=1">
+</head>
+<body class="project-body">
+  <section class="project-loading" id="projectLoading" aria-live="polite">
+    <img src="assets/logos/write.png" alt="">
+    <span></span>
+    <p>Abrindo projeto…</p>
+  </section>
+
+  <section class="project-missing" id="projectMissing" hidden>
+    <div>
+      <img src="assets/logos/write.png" alt="Atero Write">
+      <span>PROJETO</span>
+      <h1>Este projeto não foi encontrado</h1>
+      <p>Ele pode ter sido excluído ou o endereço pode estar incompleto.</p>
+      <a href="index.html">Voltar ao Atero Write</a>
+    </div>
+  </section>
+
+  <div class="project-app" id="projectShell" hidden>
+    <header class="project-topbar">
+      <div class="project-topbar-left">
+        <a class="project-back" href="index.html" aria-label="Voltar aos projetos">
+          <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+        </a>
+        <a class="project-brand" href="index.html" aria-label="Atero Write">
+          <img src="assets/logos/write.png" alt="">
+          <span>Atero Write</span>
+        </a>
+      </div>
+
+      <div class="project-identity">
+        <span class="project-identity-icon" id="projectIcon">P</span>
+        <div>
+          <div class="project-identity-line">
+            <h1 id="projectTitle">Projeto</h1>
+            <span class="project-type-badge" id="projectType">Vazio</span>
+          </div>
+          <span id="projectUpdated">Atualizado agora</span>
+        </div>
+      </div>
+
+      <div class="project-topbar-actions">
+        <button class="project-new-document" id="headerNewDocumentButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
+          <span>Novo documento</span>
+        </button>
+        <div class="project-menu-wrap">
+          <button class="project-menu-button" id="projectMenuButton" type="button" aria-label="Mais opções" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
+          </button>
+          <div class="project-menu" id="projectMenu" hidden>
+            <button type="button" id="renameProjectButton"><svg viewBox="0 0 24 24"><path d="m4 20 4.2-1 10.5-10.5-3.2-3.2L5 15.8 4 20Z"></path></svg>Renomear</button>
+            <button type="button" id="projectSettingsButton"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5l-.3 3a8 8 0 0 0-1.7 1L5 6 3 9.5 5 11a7 7 0 0 0 0 2l-2 1.5L5 18l2.5-1a8 8 0 0 0 1.7 1l.3 3h5l.3-3a8 8 0 0 0 1.7-1L19 18l2-3.5-2-1.5a7 7 0 0 0 .1-1Z"></path></svg>Configurações</button>
+            <hr>
+            <button type="button" class="danger" id="deleteProjectButton"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"></path></svg>Excluir projeto</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="project-layout">
+      <aside class="project-sidebar">
+        <div class="project-sidebar-summary" id="projectSidebarSummary">
+          <span>Em andamento</span><strong>0</strong><small>documentos vinculados</small>
+        </div>
+        <nav class="project-nav" id="projectNav" aria-label="Seções do projeto"></nav>
+        <div class="project-sidebar-footer">
+          <span>Armazenado neste dispositivo</span>
+          <small>Salvamento automático pelo Atero Write</small>
+        </div>
+      </aside>
+
+      <main class="project-main">
+        <header class="project-section-header">
+          <div>
+            <span id="sectionEyebrow">PROJETO</span>
+            <h2 id="sectionTitle">Visão geral</h2>
+            <p id="sectionDescription">Acompanhe o estado do projeto.</p>
+          </div>
+          <button class="project-section-action" id="sectionAction" type="button" hidden></button>
+        </header>
+        <section class="project-content" id="projectContent"></section>
+      </main>
+    </div>
+  </div>
+
+  <div class="project-toast-region" id="toastRegion" aria-live="polite"></div>
+
+  <script src="js/editor-data-core.js?v=1"></script>
+  <script src="js/editor-data.js?v=2"></script>
+  <script src="js/project-data.js?v=1"></script>
+
+  <script src="js/project-models/livro.js?v=1"></script>
+  <script src="js/project-models/roteiro.js?v=1"></script>
+  <script src="js/project-models/artigo.js?v=1"></script>
+  <script src="js/project-models/vazio.js?v=1"></script>
+
+  <script src="js/project-modules/overview.js?v=1"></script>
+  <script src="js/project-modules/documents.js?v=1"></script>
+  <script src="js/project-modules/characters.js?v=1"></script>
+  <script src="js/project-modules/timeline.js?v=1"></script>
+  <script src="js/project-modules/locations.js?v=1"></script>
+  <script src="js/project-modules/notes.js?v=1"></script>
+  <script src="js/project-modules/placeholder.js?v=1"></script>
+
+  <script src="js/projeto.js?v=1"></script>
+</body>
+</html>

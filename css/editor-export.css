@@ -1,0 +1,244 @@
+/* =========================================================
+   ATERO WRITE — EXPORTAÇÃO
+   Carregado depois de editor.css
+   ========================================================= */
+
+.export-button {
+  position: relative;
+}
+
+.export-button::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  background: var(--write-red, #e63946);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(.7);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.export-button:hover::after,
+.export-button:focus-visible::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.export-dialog {
+  width: min(calc(100% - 32px), 760px);
+  padding: 0;
+  overflow: hidden;
+}
+
+.export-dialog-form {
+  max-height: min(88vh, 820px);
+  padding: 28px;
+  overflow-y: auto;
+}
+
+.export-dialog .dialog-head {
+  margin-bottom: 18px;
+}
+
+.export-dialog-intro {
+  max-width: 620px;
+  margin: -4px 0 22px;
+  color: var(--write-muted, #969696);
+  font-size: .72rem;
+  line-height: 1.58;
+}
+
+.export-formats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.export-format-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 14px;
+  color: var(--write-gray, #656565);
+  background: rgba(248, 248, 248, .78);
+  border: 1px solid var(--write-border, #e9e9e9);
+  border-radius: 13px;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.export-format-card:hover {
+  color: var(--write-black, #151515);
+  background: #ffffff;
+  border-color: var(--write-border-strong, #d9d9d9);
+  box-shadow: 0 8px 22px rgba(20, 20, 20, .055);
+  transform: translateY(-1px);
+}
+
+.export-format-card.is-selected {
+  color: var(--write-black, #151515);
+  background:
+    linear-gradient(145deg, #ffffff, var(--write-red-soft, #fff1f2));
+  border-color: var(--write-red-border, rgba(230, 57, 70, .22));
+  box-shadow:
+    0 0 0 3px rgba(230, 57, 70, .055),
+    0 9px 24px rgba(20, 20, 20, .055);
+}
+
+.export-format-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.export-format-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  color: var(--write-red, #e63946);
+  background: #ffffff;
+  border: 1px solid var(--write-red-border, rgba(230, 57, 70, .22));
+  border-radius: 11px;
+  box-shadow: 0 5px 14px rgba(20, 20, 20, .045);
+  font-size: .62rem;
+  font-weight: 850;
+  letter-spacing: -.025em;
+}
+
+.export-format-card.is-selected .export-format-icon {
+  color: #ffffff;
+  background: var(--write-red, #e63946);
+  border-color: var(--write-red, #e63946);
+  box-shadow: 0 8px 18px rgba(230, 57, 70, .19);
+}
+
+.export-format-copy {
+  min-width: 0;
+}
+
+.export-format-copy strong,
+.export-format-copy span {
+  display: block;
+}
+
+.export-format-copy strong {
+  color: inherit;
+  font-size: .73rem;
+  font-weight: 780;
+}
+
+.export-format-copy span {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--write-muted, #969696);
+  font-size: .59rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-format-help {
+  min-height: 44px;
+  margin: 14px 0 0;
+  padding: 11px 13px;
+  color: var(--write-gray, #656565);
+  background: var(--write-surface, #f8f8f8);
+  border: 1px solid var(--write-border, #e9e9e9);
+  border-radius: 10px;
+  font-size: .66rem;
+  line-height: 1.5;
+}
+
+.export-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin-top: 18px;
+  padding: 15px;
+  background: rgba(248, 248, 248, .72);
+  border: 1px solid var(--write-border, #e9e9e9);
+  border-radius: 11px;
+}
+
+.export-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--write-gray, #656565);
+  font-size: .65rem;
+  cursor: pointer;
+}
+
+.export-option input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--write-red, #e63946);
+}
+
+.export-status {
+  min-height: 19px;
+  margin: 15px 0 -4px;
+  color: var(--write-muted, #969696);
+  font-size: .65rem;
+  line-height: 1.45;
+}
+
+.export-status:empty {
+  display: none;
+}
+
+.export-status[data-state="working"] {
+  color: #9a6a14;
+}
+
+.export-status[data-state="success"] {
+  color: #278653;
+}
+
+.export-status[data-state="error"] {
+  color: var(--write-red-hover, #cf2f3b);
+  font-weight: 650;
+}
+
+.export-dialog.is-exporting .export-format-card,
+.export-dialog.is-exporting .export-option {
+  pointer-events: none;
+  opacity: .65;
+}
+
+#exportSubmitButton:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
+@media (max-width: 680px) {
+  .export-dialog-form {
+    padding: 22px 18px;
+  }
+
+  .export-formats {
+    grid-template-columns: 1fr;
+  }
+
+  .export-options {
+    grid-template-columns: 1fr;
+  }
+}

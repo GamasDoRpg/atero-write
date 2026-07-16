@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Editor de texto do Atero Write.">
+  <meta name="theme-color" content="#ffffff">
+  <title>Editor — Atero Write</title>
+  <link rel="icon" type="image/png" href="assets/logos/write.png">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/write.css">
+  <link rel="stylesheet" href="css/editor.css?v=9">
+  <link rel="stylesheet" href="css/editor-export.css?v=1">
+  <link rel="stylesheet" href="css/editor-screenplay.css?v=3">
+  <link rel="stylesheet" href="css/editor-data.css?v=1">
+</head>
+<body class="editor-body">
+  <header class="editor-topbar">
+    <div class="editor-topbar-main">
+      <a class="editor-brand" href="index.html" aria-label="Voltar ao Atero Write">
+        <img src="assets/logos/write.png" alt="" class="editor-brand-logo">
+        <span>Atero Write</span>
+      </a>
+
+      <div class="document-identity">
+        <input id="documentTitle" class="document-title-input" type="text" maxlength="120" value="Documento sem título" aria-label="Nome do documento" autocomplete="off">
+        <div class="save-status" id="saveStatus" aria-live="polite">
+          <span class="save-status-dot" aria-hidden="true"></span>
+          <span id="saveStatusText">Carregando…</span>
+        </div>
+        <button class="screenplay-draft-badge" id="screenplayDraftBadge" type="button" hidden>
+          <span class="screenplay-draft-swatch" id="screenplayDraftBadgeSwatch" aria-hidden="true"></span>
+          <span id="screenplayDraftBadgeText">Primeiro rascunho</span>
+        </button>
+      </div>
+
+      <div class="editor-topbar-actions">
+        <button class="editor-icon-button" id="findButton" type="button" title="Localizar (Ctrl+F)" aria-label="Localizar">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+        </button>
+        <button class="editor-icon-button" id="versionsButton" type="button" title="Histórico de versões" aria-label="Histórico de versões">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path><path d="M12 7v5l3 2"></path></svg>
+        </button>
+        <button class="editor-icon-button" id="readModeButton" type="button" title="Modo leitura" aria-label="Modo leitura">
+          <svg viewBox="0 0 24 24"><path d="M3 5.5A4.5 4.5 0 0 1 7.5 1H11v18H7.5A4.5 4.5 0 0 0 3 23Z"></path><path d="M21 5.5A4.5 4.5 0 0 0 16.5 1H13v18h3.5A4.5 4.5 0 0 1 21 23Z"></path></svg>
+        </button>
+        <button class="editor-icon-button" id="focusModeButton" type="button" title="Modo foco (Esc para sair)" aria-label="Modo foco">
+          <svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg>
+        </button>
+        <button class="editor-icon-button" id="undoButton" type="button" title="Desfazer (Ctrl+Z)" aria-label="Desfazer">
+          <svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"></path><path d="M5 12h9a5 5 0 0 1 5 5"></path></svg>
+        </button>
+        <button class="editor-icon-button" id="redoButton" type="button" title="Refazer (Ctrl+Y)" aria-label="Refazer">
+          <svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"></path><path d="M19 12h-9a5 5 0 0 0-5 5"></path></svg>
+        </button>
+        <button class="editor-icon-button export-button" id="exportButton" type="button" title="Exportar documento" aria-label="Exportar documento">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14a2 2 0 0 0 2-2v-3"></path><path d="M3 16v3a2 2 0 0 0 2 2"></path></svg>
+        </button>
+        <a class="editor-exit-button" href="index.html"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg><span>Documentos</span></a>
+      </div>
+    </div>
+
+    <nav class="ribbon-tabs" aria-label="Categorias do editor">
+      <button class="ribbon-tab is-active" type="button" data-ribbon-tab="text">Texto</button>
+      <button class="ribbon-tab" type="button" data-ribbon-tab="insert">Inserir</button>
+      <button class="ribbon-tab" type="button" data-ribbon-tab="page">Página</button>
+      <button class="ribbon-tab" type="button" data-ribbon-tab="screenplay">Roteiro</button>
+      <button class="ribbon-tab" type="button" data-ribbon-tab="view">Exibir</button>
+    </nav>
+
+    <div class="ribbon-panels">
+      <div class="ribbon-panel is-active" data-ribbon-panel="text" role="toolbar" aria-label="Formatação do texto">
+        <div class="toolbar-group toolbar-group-wide">
+          <label class="toolbar-label" for="blockFormat">Estilo</label>
+          <select class="toolbar-select block-select" id="blockFormat">
+            <option value="p">Texto normal</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option><option value="blockquote">Citação</option><option value="pre">Código</option>
+          </select>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group toolbar-group-wide">
+          <label class="toolbar-label" for="fontFamily">Fonte</label>
+          <select class="toolbar-select font-select" id="fontFamily">
+            <option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Times New Roman">Times New Roman</option><option value="Verdana">Verdana</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Courier New">Courier New</option>
+          </select>
+        </div>
+        <div class="toolbar-group toolbar-group-wide small-field">
+          <label class="toolbar-label" for="fontSize">Tamanho</label>
+          <input class="toolbar-number" id="fontSize" type="number" min="6" max="96" step="1" value="12" aria-label="Tamanho da fonte em pontos">
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group toolbar-buttons">
+          <button class="toolbar-button" type="button" data-command="bold" title="Negrito (Ctrl+B)"><strong>B</strong></button>
+          <button class="toolbar-button" type="button" data-command="italic" title="Itálico (Ctrl+I)"><em>I</em></button>
+          <button class="toolbar-button" type="button" data-command="underline" title="Sublinhado (Ctrl+U)"><span class="underline-icon">U</span></button>
+          <button class="toolbar-button" type="button" data-command="strikeThrough" title="Tachado"><span class="strike-icon">S</span></button>
+          <button class="toolbar-button text-command" type="button" data-command="superscript" title="Sobrescrito">x<sup>2</sup></button>
+          <button class="toolbar-button text-command" type="button" data-command="subscript" title="Subscrito">x<sub>2</sub></button>
+        </div>
+        <div class="toolbar-group color-group">
+          <label class="color-control" title="Cor do texto"><span class="color-letter">A</span><input id="textColor" type="color" value="#151515"></label>
+          <label class="color-control" title="Cor de destaque"><svg viewBox="0 0 24 24"><path d="m9 11 6-6 4 4-6 6"></path><path d="m7 13 4 4"></path><path d="M5 19h14"></path></svg><input id="highlightColor" type="color" value="#fff2a8"></label>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group toolbar-buttons">
+          <button class="toolbar-button" type="button" data-command="justifyLeft" title="Alinhar à esquerda"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h12M4 14h16M4 18h10"></path></svg></button>
+          <button class="toolbar-button" type="button" data-command="justifyCenter" title="Centralizar"><svg viewBox="0 0 24 24"><path d="M4 6h16M6 10h12M4 14h16M7 18h10"></path></svg></button>
+          <button class="toolbar-button" type="button" data-command="justifyRight" title="Alinhar à direita"><svg viewBox="0 0 24 24"><path d="M4 6h16M8 10h12M4 14h16M10 18h10"></path></svg></button>
+          <button class="toolbar-button" type="button" data-command="justifyFull" title="Justificar"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg></button>
+        </div>
+        <div class="toolbar-group toolbar-buttons">
+          <button class="toolbar-button" type="button" data-command="insertUnorderedList" title="Marcadores"><svg viewBox="0 0 24 24"><circle cx="5" cy="7" r="1"></circle><circle cx="5" cy="12" r="1"></circle><circle cx="5" cy="17" r="1"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg></button>
+          <button class="toolbar-button" type="button" data-command="insertOrderedList" title="Lista numerada"><svg viewBox="0 0 24 24"><path d="M4 6h1v3M4 9h2M4 13h2l-2 3h2M9 7h11M9 12h11M9 17h11"></path></svg></button>
+          <select class="toolbar-select list-style-select" id="listStyle" title="Estilo de lista" aria-label="Estilo de lista">
+            <option value="disc">•</option><option value="circle">○</option><option value="square">■</option><option value="decimal">1.</option><option value="lower-alpha">a.</option><option value="upper-roman">I.</option>
+          </select>
+          <button class="toolbar-button" type="button" data-command="outdent" title="Diminuir recuo"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 10h11M9 14h11M9 18h11M3 12l4-4v8Z"></path></svg></button>
+          <button class="toolbar-button" type="button" data-command="indent" title="Aumentar recuo"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 10h11M9 14h11M9 18h11M7 12 3 8v8Z"></path></svg></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group compact-fields">
+          <label><span>Linhas</span><select id="lineHeight"><option value="1">1,0</option><option value="1.15" selected>1,15</option><option value="1.5">1,5</option><option value="2">2,0</option></select></label>
+          <label><span>Antes</span><input id="spaceBefore" type="number" min="0" max="72" value="0"></label>
+          <label><span>Depois</span><input id="spaceAfter" type="number" min="0" max="72" value="8"></label>
+          <label><span>1ª linha</span><input id="firstLineIndent" type="number" min="-72" max="144" value="0"></label>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group toolbar-buttons">
+          <select class="toolbar-select case-select" id="caseTransform" title="Maiúsculas e minúsculas" aria-label="Maiúsculas e minúsculas">
+            <option value="">Aa</option><option value="lower">minúsculas</option><option value="upper">MAIÚSCULAS</option><option value="sentence">Frase</option><option value="title">Iniciais Maiúsculas</option><option value="toggle">iNVERTER</option>
+          </select>
+          <button class="toolbar-button" id="formatPainterButton" type="button" title="Pincel de formatação"><svg viewBox="0 0 24 24"><path d="M4 4h12v5H4z"></path><path d="M16 6h3v7H9v7"></path></svg></button>
+          <button class="toolbar-button" type="button" data-command="removeFormat" title="Limpar formatação"><svg viewBox="0 0 24 24"><path d="m5 5 14 14M7 4h10M12 4v8M4 20h8"></path></svg></button>
+        </div>
+      </div>
+
+      <div class="ribbon-panel" data-ribbon-panel="insert" role="toolbar" aria-label="Inserir elementos">
+        <div class="toolbar-section"><span class="toolbar-section-title">Estrutura</span><div class="toolbar-group toolbar-buttons">
+          <button class="ribbon-action" id="pageBreakButton" type="button"><svg viewBox="0 0 24 24"><path d="M5 3h14v7H5zM5 14h14v7H5z"></path><path d="M8 12h8"></path></svg><span>Quebra de página</span></button>
+          <button class="ribbon-action" id="horizontalRuleButton" type="button"><svg viewBox="0 0 24 24"><path d="M4 12h16"></path></svg><span>Linha horizontal</span></button>
+          <button class="ribbon-action" id="textBoxButton" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M8 9h8M12 9v6"></path></svg><span>Caixa de texto</span></button>
+          <button class="ribbon-action" id="tocButton" type="button"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg><span>Índice automático</span></button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Referências</span><div class="toolbar-group toolbar-buttons">
+          <button class="ribbon-action" id="insertLinkButton" type="button"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg><span>Link</span></button>
+          <button class="ribbon-action" id="bookmarkButton" type="button"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4Z"></path></svg><span>Marcador</span></button>
+          <button class="ribbon-action" id="footnoteButton" type="button"><svg viewBox="0 0 24 24"><path d="M5 4h8M9 4v12M5 16h8"></path><path d="M16 7h4l-4 5h4"></path></svg><span>Nota de rodapé</span></button>
+          <button class="ribbon-action" id="citationButton" type="button"><svg viewBox="0 0 24 24"><path d="M5 7h6v6H7v4H4v-5a5 5 0 0 1 5-5M15 7h6v6h-4v4h-3v-5a5 5 0 0 1 5-5"></path></svg><span>Citação</span></button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Objetos</span><div class="toolbar-group toolbar-buttons">
+          <button class="ribbon-action" id="tableButton" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"></rect><path d="M3 9h18M8 4v16M15 4v16"></path></svg><span>Tabela</span></button>
+          <button class="ribbon-action" id="imageButton" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8" cy="9" r="2"></circle><path d="m4 18 5-5 3 3 3-4 5 6"></path></svg><span>Imagem</span></button>
+          <button class="ribbon-action" id="captionButton" type="button"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="12" rx="2"></rect><path d="M7 19h10M9 15v4M15 15v4"></path></svg><span>Legenda</span></button>
+          <button class="ribbon-action" id="specialCharsButton" type="button"><span class="large-symbol">Ω</span><span>Símbolos</span></button>
+        </div></div>
+        <input id="imageInput" type="file" accept="image/*" hidden>
+      </div>
+
+      <div class="ribbon-panel" data-ribbon-panel="page" role="toolbar" aria-label="Configuração da página">
+        <div class="toolbar-section"><span class="toolbar-section-title">Documento</span><div class="toolbar-group toolbar-buttons">
+          <button class="ribbon-action" id="pageSetupButton" type="button"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Z"></path><path d="M15 3v4h4"></path><path d="M9 12h6M9 16h6"></path></svg><span>Configurar página</span></button>
+          <button class="ribbon-action" id="headerFooterButton" type="button"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5Z"></path><path d="M5 7h14M5 17h14"></path></svg><span>Cabeçalho e rodapé</span></button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Colunas</span><div class="toolbar-group">
+          <select class="toolbar-select columns-select" id="columnsSelect"><option value="1">Uma coluna</option><option value="2">Duas colunas</option><option value="3">Três colunas</option></select>
+          <button class="compact-action" id="applyColumnsButton" type="button">Aplicar ao bloco</button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Margens rápidas</span><div class="toolbar-group compact-fields page-fields">
+          <label><span>Esquerda</span><input id="pageMarginLeft" type="number" min="20" max="180" value="82"></label>
+          <label><span>Direita</span><input id="pageMarginRight" type="number" min="20" max="180" value="82"></label>
+          <label><span>Superior</span><input id="pageMarginTop" type="number" min="20" max="200" value="86"></label>
+          <label><span>Inferior</span><input id="pageMarginBottom" type="number" min="20" max="200" value="86"></label>
+        </div></div>
+      </div>
+
+      <div class="ribbon-panel" data-ribbon-panel="screenplay" role="toolbar" aria-label="Modo roteiro">
+        <div class="toolbar-section"><span class="toolbar-section-title">Modo</span><div class="toolbar-group toolbar-buttons">
+          <button class="ribbon-action screenplay-mode-toggle" id="screenplayToggleButton" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5Z"></path><path d="M8 7h8M8 11h5M8 15h8"></path></svg><span>Ativar roteiro</span></button>
+          <button class="ribbon-action" id="screenplaySettingsButton" type="button"><svg viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4"></path><circle cx="8" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg><span>Configurar</span></button>
+          <button class="ribbon-action" id="screenplayTitlePageButton" type="button"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Z"></path><path d="M15 3v4h4M9 12h6M9 16h6"></path></svg><span>Capa</span></button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Elemento</span><div class="toolbar-group toolbar-group-wide">
+          <select class="toolbar-select screenplay-element-select" id="screenplayElementSelect" aria-label="Elemento do roteiro">
+            <option value="normal">Texto comum</option><option value="action">Ação</option><option value="scene">Slugline / Cena</option><option value="character">Personagem</option><option value="parenthetical">Parentético</option><option value="dialogue">Diálogo</option><option value="transition">Transição</option><option value="shot">Plano</option><option value="centered">Centralizado</option>
+          </select>
+          <div class="screenplay-quick-buttons">
+            <button class="screenplay-mini-button" type="button" data-screenplay-element="scene">CENA</button><button class="screenplay-mini-button" type="button" data-screenplay-element="action">AÇÃO</button><button class="screenplay-mini-button" type="button" data-screenplay-element="character">PERSON.</button><button class="screenplay-mini-button" type="button" data-screenplay-element="dialogue">DIÁL.</button>
+          </div>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Slugline</span><div class="toolbar-group toolbar-buttons">
+          <button class="screenplay-mini-button" type="button" data-screenplay-scene-prefix="INT.">INT.</button><button class="screenplay-mini-button" type="button" data-screenplay-scene-prefix="EXT.">EXT.</button><button class="screenplay-mini-button" type="button" data-screenplay-scene-prefix="INT./EXT.">INT./EXT.</button><button class="screenplay-mini-button" type="button" data-screenplay-scene-time="DIA">DIA</button><button class="screenplay-mini-button" type="button" data-screenplay-scene-time="NOITE">NOITE</button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Personagem</span><div class="toolbar-group toolbar-buttons">
+          <button class="screenplay-mini-button" type="button" data-screenplay-character-modifier="V.O.">V.O.</button><button class="screenplay-mini-button" type="button" data-screenplay-character-modifier="O.S.">O.S.</button><button class="screenplay-mini-button" type="button" data-screenplay-character-modifier="CONT'D">CONT'D</button>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-section"><span class="toolbar-section-title">Documento</span><div class="toolbar-group toolbar-group-wide">
+          <select class="toolbar-select screenplay-page-select" id="screenplayPagePreset" aria-label="Tamanho de página do roteiro"><option value="Letter">Carta profissional</option><option value="A4">A4</option></select>
+          <div class="screenplay-quick-buttons"><button class="screenplay-mini-button screenplay-ribbon-action" id="screenplaySceneNumbersButton" type="button" aria-pressed="true">Nº cenas</button><button class="screenplay-mini-button" id="screenplayPreviousScene" type="button">← Cena</button><button class="screenplay-mini-button" id="screenplayNextScene" type="button">Cena →</button></div>
+        </div></div>
+        <div class="toolbar-divider tall"></div>
+        <p class="screenplay-toolbar-note"><kbd>Tab</kbd> troca o elemento. <kbd>Enter</kbd> avança de forma inteligente. <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>1–8</kbd> aplica estilos.</p>
+      </div>
+
+      <div class="ribbon-panel" data-ribbon-panel="view" role="toolbar" aria-label="Opções de visualização">
+        <div class="toolbar-section"><span class="toolbar-section-title">Visualização</span><div class="view-switcher"><button class="view-button is-active" id="pageModeButton" type="button">Páginas</button><button class="view-button" id="flowModeButton" type="button">Contínuo</button></div></div>
+        <div class="toolbar-divider tall"></div>
+        <div class="toolbar-group toolbar-buttons">
+          <button class="ribbon-action" id="toggleRulerButton" type="button"><svg viewBox="0 0 24 24"><path d="M3 7h18v10H3Z"></path><path d="M7 7v4M11 7v2M15 7v4M19 7v2"></path></svg><span>Régua</span></button>
+          <button class="ribbon-action" id="splitViewButton" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M12 4v16"></path></svg><span>Tela dividida</span></button>
+          <button class="ribbon-action" id="goToPageButton" type="button"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6Z"></path><path d="m10 8 4 4-4 4"></path></svg><span>Ir para página</span></button>
+          <button class="ribbon-action" id="viewReadModeButton" type="button"><svg viewBox="0 0 24 24"><path d="M3 5.5A4.5 4.5 0 0 1 7.5 1H11v18H7.5A4.5 4.5 0 0 0 3 23Z"></path><path d="M21 5.5A4.5 4.5 0 0 0 16.5 1H13v18h3.5A4.5 4.5 0 0 1 21 23Z"></path></svg><span>Modo leitura</span></button>
+          <button class="ribbon-action" id="viewFocusModeButton" type="button"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg><span>Modo foco</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="find-panel" id="findPanel" hidden>
+    <input id="findInput" type="search" placeholder="Localizar…" autocomplete="off">
+    <input id="replaceInput" type="text" placeholder="Substituir por…" autocomplete="off" hidden>
+    <span id="findCounter">0 de 0</span>
+    <button type="button" id="findPrevious">Anterior</button><button type="button" id="findNext">Próximo</button>
+    <button type="button" id="replaceCurrent" hidden>Substituir</button><button type="button" id="replaceAll" hidden>Substituir todos</button>
+    <label><input id="matchCase" type="checkbox"> Diferenciar maiúsculas</label>
+    <button type="button" id="closeFindPanel" aria-label="Fechar">×</button>
+  </section>
+
+  <div class="editor-ruler" id="editorRuler">
+    <div class="ruler-inner" id="rulerInner" aria-label="Régua do documento">
+      <div class="ruler-scale" id="rulerScale"></div>
+      <button class="ruler-marker ruler-marker-first" id="firstIndentMarker" type="button" title="Recuo da primeira linha"></button>
+      <button class="ruler-marker ruler-marker-left" id="leftIndentMarker" type="button" title="Recuo esquerdo"></button>
+      <button class="ruler-marker ruler-marker-right" id="rightIndentMarker" type="button" title="Recuo direito"></button>
+      <div class="ruler-tabs" id="rulerTabs"></div>
+    </div>
+  </div>
+
+  <main class="editor-workspace" id="editorWorkspace">
+    <aside class="editor-sidebar" id="editorSidebar">
+      <div class="sidebar-section"><span class="sidebar-label">Documento</span><strong id="sidebarDocumentName">Documento sem título</strong></div>
+      <div class="sidebar-section sidebar-statistics"><div><span>Palavras</span><strong id="wordCount">0</strong></div><div><span>Caracteres</span><strong id="characterCount">0</strong></div><div><span>Páginas</span><strong id="pageCount">1</strong></div><div><span>Leitura</span><strong id="readingTime">0 min</strong></div></div>
+      <div class="sidebar-section"><span class="sidebar-label">Página atual</span><button class="sidebar-action" id="sidebarGoToPage" type="button">Ir para uma página</button><button class="sidebar-action" id="sidebarPageSetup" type="button">Configurar página</button></div>
+      <div class="sidebar-section screenplay-sidebar-section" id="screenplaySidebarSection" hidden><span class="sidebar-label">Roteiro</span><div class="screenplay-sidebar-grid"><div><span>Draft</span><strong id="screenplaySidebarDraft">Primeiro rascunho</strong></div><div><span>Cenas</span><strong id="screenplaySidebarScenes">0</strong></div><div><span>Elemento atual</span><strong id="screenplaySidebarElement">Texto comum</strong></div><div><span>Página</span><strong>Carta / A4</strong></div></div><button class="sidebar-action" id="screenplaySidebarSettings" type="button">Configurar roteiro</button><button class="sidebar-action" id="screenplaySidebarTitlePage" type="button">Inserir ou atualizar capa</button></div>
+      <div class="sidebar-section sidebar-help"><span class="sidebar-label">Atalhos</span><p><kbd>Ctrl</kbd> + <kbd>S</kbd> salvar</p><p><kbd>Ctrl</kbd> + <kbd>F</kbd> localizar</p><p><kbd>Ctrl</kbd> + <kbd>H</kbd> substituir</p><p><kbd>Ctrl</kbd> + <kbd>Enter</kbd> quebra de página</p><p><kbd>Tab</kbd> tabulação</p></div>
+    </aside>
+
+    <section class="document-stage view-pages" id="documentStage">
+      <div class="editor-pane primary-pane" id="primaryPane">
+        <div id="pagesContainer" class="pages-container"></div>
+        <div id="flowEditor" class="flow-editor" contenteditable="true" spellcheck="true" aria-label="Conteúdo do documento" hidden></div>
+      </div>
+      <div class="editor-pane secondary-pane" id="secondaryPane" hidden>
+        <div id="splitEditor" class="split-editor" contenteditable="true" spellcheck="true" aria-label="Segunda visualização do documento"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="editor-statusbar">
+    <button class="status-button" id="toggleSidebarButton" type="button">Ocultar painel</button>
+    <span id="bottomWordCount">0 palavras</span><span class="status-separator">•</span><span id="selectionCount">Nenhuma seleção</span><span class="status-separator">•</span><button class="status-page-button" id="statusPageButton" type="button"><span id="bottomPageCount">1 página</span></button>
+    <span class="screenplay-status" id="screenplayStatus" hidden><span id="screenplayStatusElement">Texto comum</span><span class="screenplay-status-separator">•</span><span id="screenplayStatusScene">0 cenas</span></span>
+    <div class="status-spacer"></div>
+    <button class="zoom-button" id="zoomOutButton" type="button">−</button><input id="zoomRange" type="range" min="70" max="140" step="10" value="100"><span id="zoomValue">100%</span><button class="zoom-button" id="zoomInButton" type="button">+</button>
+  </footer>
+
+  <nav class="context-menu" id="contextMenu" hidden>
+    <button data-action="cut">Recortar</button><button data-action="copy">Copiar</button><button data-action="paste">Colar</button><button data-action="pastePlain">Colar sem formatação</button><hr><button data-action="selectAll">Selecionar tudo</button><button data-action="link">Inserir link</button><button data-action="pageBreak">Quebra de página</button><button data-action="removeFormat">Remover formatação</button>
+  </nav>
+
+  <div class="paste-popover" id="pastePopover" hidden>
+    <strong>Como colar?</strong>
+    <button type="button" data-paste-mode="keep">Manter formatação</button>
+    <button type="button" data-paste-mode="merge">Combinar com o texto</button>
+    <button type="button" data-paste-mode="plain">Somente texto</button>
+  </div>
+
+  <div class="screenplay-character-suggestions" id="screenplayCharacterSuggestions" role="listbox" aria-label="Sugestões de personagens" hidden></div>
+
+  <dialog class="editor-dialog" id="linkDialog"><form id="linkForm"><div class="dialog-head"><div><span class="dialog-label">Link</span><h2>Inserir ligação</h2></div><button type="button" id="closeLinkDialog">×</button></div><div class="dialog-grid"><label class="dialog-field">Tipo<select id="linkType"><option value="url">Endereço externo</option><option value="bookmark">Marcador interno</option></select></label><label class="dialog-field" id="linkUrlField">URL<input id="linkUrl" type="url" value="https://"></label><label class="dialog-field" id="linkBookmarkField" hidden>Marcador<select id="linkBookmark"></select></label></div><div class="dialog-actions"><button type="button" class="dialog-secondary" id="cancelLinkDialog">Cancelar</button><button type="submit" class="dialog-primary">Inserir</button></div></form></dialog>
+
+  <dialog class="editor-dialog" id="bookmarkDialog"><form id="bookmarkForm"><div class="dialog-head"><div><span class="dialog-label">Marcador</span><h2>Criar ponto interno</h2></div><button type="button" data-close-dialog="bookmarkDialog">×</button></div><label class="dialog-field">Nome<input id="bookmarkName" type="text" maxlength="60" placeholder="Ex.: introducao" required></label><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="bookmarkDialog">Cancelar</button><button type="submit" class="dialog-primary">Criar marcador</button></div></form></dialog>
+
+  <dialog class="editor-dialog" id="footnoteDialog"><form id="footnoteForm"><div class="dialog-head"><div><span class="dialog-label">Nota de rodapé</span><h2>Adicionar nota</h2></div><button type="button" data-close-dialog="footnoteDialog">×</button></div><label class="dialog-field">Texto da nota<textarea id="footnoteText" rows="5" required></textarea></label><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="footnoteDialog">Cancelar</button><button type="submit" class="dialog-primary">Inserir nota</button></div></form></dialog>
+
+  <dialog class="editor-dialog" id="citationDialog"><form id="citationForm"><div class="dialog-head"><div><span class="dialog-label">Citação</span><h2>Inserir referência</h2></div><button type="button" data-close-dialog="citationDialog">×</button></div><div class="dialog-grid"><label class="dialog-field">Autor<input id="citationAuthor" type="text" required></label><label class="dialog-field">Ano<input id="citationYear" type="text" maxlength="12"></label><label class="dialog-field dialog-field-full">Fonte ou observação<input id="citationSource" type="text"></label><label class="dialog-field">Formato<select id="citationFormat"><option value="parenthetical">(Autor, ano)</option><option value="narrative">Autor (ano)</option><option value="quote">Bloco de citação</option></select></label></div><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="citationDialog">Cancelar</button><button type="submit" class="dialog-primary">Inserir</button></div></form></dialog>
+
+  <dialog class="editor-dialog" id="tableDialog"><form id="tableForm"><div class="dialog-head"><div><span class="dialog-label">Tabela</span><h2>Inserir tabela</h2></div><button type="button" data-close-dialog="tableDialog">×</button></div><div class="dialog-grid"><label class="dialog-field">Linhas<input id="tableRows" type="number" min="1" max="30" value="3"></label><label class="dialog-field">Colunas<input id="tableColumns" type="number" min="1" max="12" value="3"></label><label class="dialog-field dialog-check"><input id="tableHeader" type="checkbox" checked> Primeira linha como cabeçalho</label></div><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="tableDialog">Cancelar</button><button type="submit" class="dialog-primary">Inserir</button></div></form></dialog>
+
+  <dialog class="editor-dialog symbols-dialog" id="specialCharsDialog"><div class="dialog-head"><div><span class="dialog-label">Símbolos</span><h2>Caracteres especiais</h2></div><button type="button" data-close-dialog="specialCharsDialog">×</button></div><div class="symbols-grid" id="symbolsGrid"></div></dialog>
+
+  <dialog class="editor-dialog page-dialog" id="pageSetupDialog"><form id="pageSetupForm"><div class="dialog-head"><div><span class="dialog-label">Página</span><h2>Configurar documento</h2></div><button type="button" data-close-dialog="pageSetupDialog">×</button></div><div class="dialog-grid"><label class="dialog-field">Tamanho<select id="pagePreset"><option value="A4">A4</option><option value="Letter">Carta</option><option value="Legal">Ofício</option><option value="Custom">Personalizado</option></select></label><label class="dialog-field">Orientação<select id="pageOrientation"><option value="portrait">Retrato</option><option value="landscape">Paisagem</option></select></label><label class="dialog-field">Largura (px)<input id="customPageWidth" type="number" min="400" max="1800" value="794"></label><label class="dialog-field">Altura (px)<input id="customPageHeight" type="number" min="500" max="2400" value="1123"></label><label class="dialog-field">Margens<select id="marginPreset"><option value="normal">Normais</option><option value="narrow">Estreitas</option><option value="wide">Largas</option><option value="custom">Personalizadas</option></select></label><label class="dialog-field">Cor da página<input id="pageColor" type="color" value="#ffffff"></label><label class="dialog-field">Superior<input id="setupMarginTop" type="number" min="20" max="240" value="86"></label><label class="dialog-field">Inferior<input id="setupMarginBottom" type="number" min="20" max="240" value="86"></label><label class="dialog-field">Esquerda<input id="setupMarginLeft" type="number" min="20" max="240" value="82"></label><label class="dialog-field">Direita<input id="setupMarginRight" type="number" min="20" max="240" value="82"></label></div><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="pageSetupDialog">Cancelar</button><button type="submit" class="dialog-primary">Aplicar</button></div></form></dialog>
+
+  <dialog class="editor-dialog" id="headerFooterDialog"><form id="headerFooterForm"><div class="dialog-head"><div><span class="dialog-label">Página</span><h2>Cabeçalho e rodapé</h2></div><button type="button" data-close-dialog="headerFooterDialog">×</button></div><div class="dialog-grid"><label class="dialog-field dialog-field-full">Cabeçalho<input id="headerText" type="text" placeholder="Texto exibido no topo"></label><label class="dialog-field dialog-field-full">Rodapé<input id="footerText" type="text" placeholder="Texto exibido embaixo"></label><label class="dialog-field dialog-check"><input id="showPageNumbers" type="checkbox" checked> Mostrar número da página</label><label class="dialog-field">Posição<select id="pageNumberPosition"><option value="footer-center">Rodapé central</option><option value="footer-right">Rodapé à direita</option><option value="header-right">Cabeçalho à direita</option></select></label><label class="dialog-field dialog-check"><input id="differentFirstPage" type="checkbox"> Primeira página diferente</label><label class="dialog-field">Cabeçalho da primeira página<input id="firstHeaderText" type="text"></label><label class="dialog-field">Rodapé da primeira página<input id="firstFooterText" type="text"></label></div><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="headerFooterDialog">Cancelar</button><button type="submit" class="dialog-primary">Aplicar</button></div></form></dialog>
+
+  <dialog class="editor-dialog" id="goToPageDialog"><form id="goToPageForm"><div class="dialog-head"><div><span class="dialog-label">Navegação</span><h2>Ir para página</h2></div><button type="button" data-close-dialog="goToPageDialog">×</button></div><label class="dialog-field">Número da página<input id="goToPageInput" type="number" min="1" value="1" required></label><div class="dialog-actions"><button type="button" class="dialog-secondary" data-close-dialog="goToPageDialog">Cancelar</button><button type="submit" class="dialog-primary">Ir</button></div></form></dialog>
+
+  <dialog class="editor-dialog versions-dialog" id="versionsDialog"><div class="dialog-head"><div><span class="dialog-label">Histórico</span><h2>Versões salvas</h2></div><button type="button" data-close-dialog="versionsDialog">×</button></div><p class="dialog-muted">Versões automáticas são criadas durante a edição e em salvamentos manuais.</p><div id="versionsList" class="versions-list"></div></dialog>
+
+  <dialog class="editor-dialog" id="recoveryDialog"><div class="dialog-head"><div><span class="dialog-label">Recuperação</span><h2>Encontramos alterações não salvas</h2></div></div><p class="dialog-muted">O navegador guardou uma cópia mais recente deste texto.</p><div class="dialog-actions"><button type="button" class="dialog-secondary" id="discardRecovery">Descartar</button><button type="button" class="dialog-primary" id="restoreRecovery">Restaurar</button></div></dialog>
+
+  <dialog class="editor-dialog screenplay-settings-dialog" id="screenplaySettingsDialog" aria-labelledby="screenplaySettingsTitle">
+    <form id="screenplaySettingsForm">
+      <div class="dialog-head"><div><span class="dialog-label">Roteiro</span><h2 id="screenplaySettingsTitle">Configurar modo roteiro</h2></div><button type="button" data-close-dialog="screenplaySettingsDialog" aria-label="Fechar">×</button></div>
+      <p class="dialog-muted">Defina o draft, a revisão e os dados usados na capa. O modo roteiro usa Courier 12 pt, fluxo inteligente de elementos e numeração opcional de cenas.</p>
+      <div class="dialog-grid">
+        <label class="dialog-field dialog-field-full">Título do roteiro<input id="screenplayTitle" type="text" maxlength="160" placeholder="Título"></label>
+        <label class="dialog-field">Escrito por<input id="screenplayAuthor" type="text" maxlength="120" placeholder="Nome do autor"></label>
+        <label class="dialog-field">Draft<input id="screenplayDraftName" type="text" maxlength="80" placeholder="Ex.: Primeiro rascunho"></label>
+        <label class="dialog-field">Data do draft<input id="screenplayDraftDate" type="date"></label>
+        <label class="dialog-field screenplay-dialog-revision">Revisão<select id="screenplayRevision"><option value="white">Páginas brancas</option><option value="blue">Azul</option><option value="pink">Rosa</option><option value="yellow">Amarela</option><option value="green">Verde</option><option value="goldenrod">Goldenrod</option><option value="buff">Buff</option><option value="salmon">Salmão</option><option value="cherry">Cherry</option><option value="tan">Tan</option><option value="gray">Cinza</option><option value="ivory">Marfim</option></select></label>
+        <label class="dialog-field">Papel<select id="screenplayDialogPagePreset"><option value="Letter">Carta — padrão profissional</option><option value="A4">A4</option></select></label>
+        <label class="dialog-field dialog-check"><input id="screenplayDialogSceneNumbers" type="checkbox" checked> Numerar sluglines</label>
+        <label class="dialog-field dialog-field-full">Contato<textarea id="screenplayContact" rows="3" placeholder="E-mail, telefone ou agência"></textarea></label>
+        <label class="dialog-field dialog-field-full">Copyright<input id="screenplayCopyright" type="text" maxlength="160" placeholder="© 2026 Nome do autor"></label>
+      </div>
+      <div class="dialog-actions screenplay-dialog-actions"><button type="button" class="dialog-secondary screenplay-title-page-action" id="screenplayInsertTitlePage">Salvar e inserir/atualizar capa</button><button type="button" class="dialog-secondary" data-close-dialog="screenplaySettingsDialog">Cancelar</button><button type="submit" class="dialog-primary">Salvar configurações</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="editor-dialog export-dialog" id="exportDialog" aria-labelledby="exportDialogTitle">
+    <form class="export-dialog-form" id="exportForm">
+      <div class="dialog-head">
+        <div>
+          <span class="dialog-label">Arquivo</span>
+          <h2 id="exportDialogTitle">Exportar documento</h2>
+        </div>
+        <button type="button" data-close-dialog="exportDialog" aria-label="Fechar">×</button>
+      </div>
+
+      <p class="export-dialog-intro">
+        Escolha o formato. A exportação usa o conteúdo, as imagens e as configurações atuais do documento.
+      </p>
+
+      <div class="export-formats" role="radiogroup" aria-label="Formato do arquivo">
+        <label class="export-format-card is-selected">
+          <input type="radio" name="exportFormat" value="pdf" checked>
+          <span class="export-format-icon">PDF</span>
+          <span class="export-format-copy"><strong>PDF</strong><span>Documento final por páginas</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="docx">
+          <span class="export-format-icon">DOCX</span>
+          <span class="export-format-copy"><strong>Word</strong><span>Documento editável do Microsoft Word</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="html">
+          <span class="export-format-icon">HTML</span>
+          <span class="export-format-copy"><strong>Página HTML</strong><span>Formatação e imagens incorporadas</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="rtf">
+          <span class="export-format-icon">RTF</span>
+          <span class="export-format-copy"><strong>Rich Text</strong><span>Compatível com vários editores</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="md">
+          <span class="export-format-icon">MD</span>
+          <span class="export-format-copy"><strong>Markdown</strong><span>Texto estruturado e portátil</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="txt">
+          <span class="export-format-icon">TXT</span>
+          <span class="export-format-copy"><strong>Texto simples</strong><span>Somente o conteúdo textual</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="fountain">
+          <span class="export-format-icon">FTN</span>
+          <span class="export-format-copy"><strong>Fountain</strong><span>Formato aberto para roteiros</span></span>
+        </label>
+
+        <label class="export-format-card">
+          <input type="radio" name="exportFormat" value="awrite">
+          <span class="export-format-icon">AW</span>
+          <span class="export-format-copy"><strong>Backup Atero Write</strong><span>Conteúdo e configurações completos</span></span>
+        </label>
+      </div>
+
+      <p class="export-format-help" id="exportFormatHelp"></p>
+
+      <div class="export-options">
+        <label class="export-option">
+          <input id="exportIncludeTitle" type="checkbox">
+          Incluir o título no começo do arquivo
+        </label>
+
+        <label class="export-option">
+          <input id="exportIncludeHeaderFooter" type="checkbox" checked>
+          Incluir cabeçalho, rodapé e numeração
+        </label>
+      </div>
+
+      <p class="export-status" id="exportStatus" aria-live="polite"></p>
+
+      <div class="dialog-actions">
+        <button type="button" class="dialog-secondary" data-close-dialog="exportDialog">Cancelar</button>
+        <button type="submit" class="dialog-primary" id="exportSubmitButton">Exportar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/editor-data-core.js?v=1"></script>
+  <script src="js/editor-data.js?v=2"></script>
+  <script src="js/project-data.js?v=1"></script>
+  <script src="js/editor.js?v=12"></script>
+  <script src="js/editor-screenplay.js?v=2"></script>
+  <script src="js/editor-export.js?v=4"></script>
+  <script src="js/editor-import.js?v=1"></script>
+</body>
+</html>
