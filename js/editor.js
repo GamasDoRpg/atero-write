@@ -226,7 +226,7 @@ const elements = {
 };
 
 let currentDocumentId = null;
-let settings = structuredClone(DEFAULT_SETTINGS);
+let settings = cloneValue(DEFAULT_SETTINGS);
 let canonicalHTML = "";
 let saveTimer = null;
 let recoveryTimer = null;
@@ -248,29 +248,57 @@ let selectedImage = null;
 let imageToolbar = null;
 let imageResizeSession = null;
 let documentReadOnlyBecauseLock = false;
+let documentWriteQueue = Promise.resolve();
+let mutationGeneration = 0;
+let saveGeneration = 0;
 
 /* =========================================================
    UTILITÁRIOS
    ========================================================= */
 
-function deepMerge(target, source) {
-  const output = structuredClone(target);
-
-  if (!source || typeof source !== "object") {
-    return output;
+function cloneValue(value) {
+  if (typeof structuredClone === "function") {
+    try { return structuredClone(value); } catch { /* Usa o fallback abaixo. */ }
   }
 
-  Object.keys(source).forEach(key => {
-    if (
-      source[key] &&
-      typeof source[key] === "object" &&
-      !Array.isArray(source[key]) &&
-      output[key] &&
-      typeof output[key] === "object"
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  if (!value || Object.prototype.toString.call(value) !== "[object Object]") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function deepMerge(target, source) {
+  if (Array.isArray(target)) {
+    return Array.isArray(source) ? cloneValue(source) : cloneValue(target);
+  }
+
+  if (!isPlainObject(target)) {
+    return source !== undefined && typeof source === typeof target
+      ? cloneValue(source)
+      : cloneValue(target);
+  }
+
+  const output = cloneValue(target);
+  if (!isPlainObject(source)) return output;
+
+  Object.keys(target).forEach(key => {
+    if (!Object.prototype.hasOwnProperty.call(source, key)) return;
+    const targetValue = target[key];
+    const sourceValue = source[key];
+
+    if (isPlainObject(targetValue)) {
+      output[key] = deepMerge(targetValue, sourceValue);
+    } else if (Array.isArray(targetValue)) {
+      output[key] = Array.isArray(sourceValue) ? cloneValue(sourceValue) : cloneValue(targetValue);
+    } else if (
+      typeof sourceValue === typeof targetValue &&
+      !(typeof sourceValue === "number" && !Number.isFinite(sourceValue))
     ) {
-      output[key] = deepMerge(output[key], source[key]);
-    } else {
-      output[key] = structuredClone(source[key]);
+      output[key] = cloneValue(sourceValue);
     }
   });
 
@@ -283,6 +311,36 @@ function safeParse(value, fallback) {
   } catch (error) {
     console.error("Não foi possível interpretar os dados salvos:", error);
     return fallback;
+  }
+}
+
+function storageGet(key, fallback = null) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value;
+  } catch (error) {
+    console.warn(`Não foi possível ler "${key}" do armazenamento local:`, error);
+    return fallback;
+  }
+}
+
+function storageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`Não foi possível gravar "${key}" no armazenamento local:`, error);
+    return false;
+  }
+}
+
+function storageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    console.warn(`Não foi possível remover "${key}" do armazenamento local:`, error);
+    return false;
   }
 }
 
@@ -323,8 +381,18 @@ function getPlainTextFromHTML(html) {
 }
 
 function setSaveStatus(state, message) {
-  elements.saveStatus.className = `save-status is-${state}`;
-  elements.saveStatusText.textContent = message;
+  if (elements.saveStatus) elements.saveStatus.className = `save-status is-${state}`;
+  if (elements.saveStatusText) elements.saveStatusText.textContent = message;
+}
+
+function validateEditorInterface() {
+  const missing = Object.entries(elements)
+    .filter(([, element]) => !element)
+    .map(([name]) => name);
+
+  if (missing.length) {
+    throw new Error(`A interface do editor está incompleta. Elementos ausentes: ${missing.join(", ")}.`);
+  }
 }
 
 function openDialog(dialog, focusElement = null) {
@@ -347,20 +415,30 @@ function closeDialog(dialog) {
 function loadDocuments() {
   const managed = window.AteroWriteData?.getDocumentsSync?.();
   if (Array.isArray(managed)) return managed;
-  const value = safeParse(localStorage.getItem(STORAGE_KEYS.documents), []);
+  const value = safeParse(storageGet(STORAGE_KEYS.documents, "[]"), []);
   return Array.isArray(value) ? value : [];
 }
 
 function saveDocuments(documents) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.documents, JSON.stringify(documents));
-  } catch (error) {
-    console.warn("O espelho em localStorage atingiu o limite; o IndexedDB continuará sendo usado.", error);
-  }
-  window.AteroWriteData?.saveDocuments?.(documents).catch(error => {
+  const snapshot = cloneValue(documents);
+  storageSet(STORAGE_KEYS.documents, JSON.stringify(snapshot));
+
+  const write = () => Promise.resolve(
+    window.AteroWriteData?.saveDocuments?.(snapshot)
+  );
+
+  // Serializa as gravações para impedir que uma escrita antiga termine depois
+  // de uma nova e volte o documento para um estado anterior.
+  const operation = documentWriteQueue
+    .catch(() => undefined)
+    .then(write);
+
+  documentWriteQueue = operation;
+  operation.catch(error => {
     console.error("Falha ao sincronizar documentos com IndexedDB:", error);
     setSaveStatus("error", "Falha no armazenamento");
   });
+  return operation;
 }
 
 function createFallbackDocument(documents) {
@@ -372,7 +450,7 @@ function createFallbackDocument(documents) {
     type: "document",
     name: "Documento sem título",
     content: "",
-    editorSettings: structuredClone(DEFAULT_SETTINGS),
+    editorSettings: cloneValue(DEFAULT_SETTINGS),
     screenplaySettings: {},
     createdAt: now,
     updatedAt: now,
@@ -393,15 +471,15 @@ function preferencesKey() {
 
 function savePreferences() {
   if (!currentDocumentId) return;
-  try { localStorage.setItem(preferencesKey(), JSON.stringify(settings.view)); } catch { /* IndexedDB é o armazenamento principal. */ }
-  window.AteroWriteData?.savePreference?.(currentDocumentId, settings.view).catch(error => {
+  storageSet(preferencesKey(), JSON.stringify(settings.view));
+  Promise.resolve(window.AteroWriteData?.savePreference?.(currentDocumentId, settings.view)).catch(error => {
     console.warn("Não foi possível salvar preferências no IndexedDB:", error);
   });
 }
 
 function loadPreferences() {
   const managed = window.AteroWriteData?.getPreferenceSync?.(currentDocumentId);
-  const stored = managed || safeParse(localStorage.getItem(preferencesKey()), null);
+  const stored = managed || safeParse(storageGet(preferencesKey()), null);
   if (stored) {
     settings.view = deepMerge(DEFAULT_SETTINGS.view, stored);
   }
@@ -413,18 +491,6 @@ function loadPreferences() {
 
 function pageBodies() {
   return $$(".page-body");
-}
-
-function editableRoots() {
-  if (settings.view.split && elements.splitEditor.contains(document.activeElement)) {
-    return [elements.splitEditor];
-  }
-
-  if (settings.view.mode === "flow") {
-    return [elements.flowEditor];
-  }
-
-  return pageBodies();
 }
 
 function activeEditor() {
@@ -870,6 +936,28 @@ function splitNodeToFit(body, node) {
   return [prefix, suffix];
 }
 
+function screenplayCarryNodes(body, incomingNode) {
+  if (incomingNode?.nodeType !== Node.ELEMENT_NODE) return [];
+  const incomingType = incomingNode.dataset?.screenplayType;
+  const children = [...body.children].filter(child => !child.matches(".manual-page-break"));
+  const carry = [];
+
+  if (incomingType !== "scene" && children.at(-1)?.dataset?.screenplayType === "scene") {
+    carry.push(children.at(-1));
+  } else if (["parenthetical", "dialogue"].includes(incomingType)) {
+    let index = children.length - 1;
+    if (incomingType === "dialogue" && children[index]?.dataset?.screenplayType === "parenthetical") {
+      carry.unshift(children[index]);
+      index -= 1;
+    }
+    if (children[index]?.dataset?.screenplayType === "character") {
+      carry.unshift(children[index]);
+    }
+  }
+
+  return carry;
+}
+
 function appendNodeWithPagination(node, state) {
   if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("manual-page-break")) {
     state.body = createPage(true);
@@ -888,7 +976,10 @@ function appendNodeWithPagination(node, state) {
   });
 
   if (bodyHadContent) {
+    const carry = screenplayCarryNodes(state.body, node);
+    carry.forEach(item => item.remove());
     state.body = createPage(false);
+    carry.forEach(item => state.body.append(item));
     state.body.append(node);
   } else {
     state.body.append(node);
@@ -1081,7 +1172,7 @@ function setDocumentLockState(readOnly) {
 }
 
 function setDocumentContent(html) {
-  canonicalHTML = html || "";
+  canonicalHTML = sanitizeHTML(String(html || ""), false);
   elements.flowEditor.innerHTML = canonicalHTML;
   elements.splitEditor.innerHTML = canonicalHTML;
   buildPagesFromHTML(canonicalHTML);
@@ -1139,6 +1230,7 @@ function markDirty() {
     return;
   }
   isDirty = true;
+  mutationGeneration += 1;
   setSaveStatus("saving", "Alterações não salvas");
 
   clearTimeout(saveTimer);
@@ -1152,6 +1244,7 @@ function markDirty() {
 
 function saveCurrentDocument(forceVersion = false) {
   clearTimeout(saveTimer);
+  clearTimeout(recoveryTimer);
 
   if (documentReadOnlyBecauseLock || (window.AteroWriteData && !window.AteroWriteData.canWrite(currentDocumentId))) {
     setDocumentLockState(true);
@@ -1171,41 +1264,67 @@ function saveCurrentDocument(forceVersion = false) {
     elements.sidebarDocumentName.textContent = name;
     document.title = `${name} — Atero Write`;
 
+    const liveScreenplaySettings = window.AteroWriteScreenplay?.getSettings?.();
+    const screenplaySettings = cloneValue(
+      liveScreenplaySettings || documents[index].screenplaySettings || {}
+    );
+
     documents[index] = {
       ...documents[index],
       schemaVersion: window.AteroWriteData?.schemaVersion || 2,
       projectId: documents[index].projectId || null,
-      type: (window.AteroWriteScreenplay?.getSettings?.().enabled || documents[index].screenplaySettings?.enabled)
-        ? "screenplay"
-        : "document",
+      type: screenplaySettings.enabled ? "screenplay" : "document",
       name,
       content: canonicalHTML,
-      editorSettings: structuredClone(settings),
-      screenplaySettings: structuredClone(
-        window.AteroWriteScreenplay?.getSettings?.() || documents[index].screenplaySettings || {}
-      ),
+      editorSettings: cloneValue(settings),
+      screenplaySettings,
       updatedAt: now,
       revision: Number(documents[index].revision || 0) + 1,
-      metadata: structuredClone(documents[index].metadata || {})
+      metadata: cloneValue(documents[index].metadata || {})
     };
 
-    saveDocuments(documents);
+    const operationId = ++saveGeneration;
+    const contentGeneration = mutationGeneration;
+    const savedDocument = cloneValue(documents[index]);
+    const persistence = saveDocuments(documents);
     savePreferences();
     isDirty = false;
-    clearRecovery();
-    setSaveStatus("saved", "Salvo neste dispositivo");
-    document.dispatchEvent(new CustomEvent("atero:document-saved", {
-      detail: { document: structuredClone(documents[index]) }
-    }));
+    setSaveStatus("saving", "Salvando neste dispositivo");
+
+    persistence.then(() => {
+      if (operationId !== saveGeneration || contentGeneration !== mutationGeneration || isDirty) return;
+      clearRecovery();
+      setSaveStatus("saved", "Salvo neste dispositivo");
+      document.dispatchEvent(new CustomEvent("atero:document-saved", {
+        detail: { document: savedDocument }
+      }));
+    }).catch(() => {
+      if (operationId !== saveGeneration || contentGeneration !== mutationGeneration) return;
+      isDirty = true;
+      saveRecovery();
+    });
 
     if (forceVersion || Date.now() - lastVersionAt >= VERSION_INTERVAL) {
       createVersion(name, canonicalHTML);
       lastVersionAt = Date.now();
     }
+    return true;
   } catch (error) {
     console.error("Não foi possível salvar o documento:", error);
     setSaveStatus("error", "Erro ao salvar");
+    return false;
   }
+}
+
+function canMutateDocument() {
+  const ownsLock = !window.AteroWriteData || !currentDocumentId || window.AteroWriteData.canWrite(currentDocumentId);
+  if (!documentReadOnlyBecauseLock && !settings.view.read && ownsLock) return true;
+
+  if (!ownsLock) setDocumentLockState(true);
+  setSaveStatus("error", documentReadOnlyBecauseLock
+    ? "Outra aba controla este documento"
+    : "O modo de leitura está ativo");
+  return false;
 }
 
 function saveRecovery() {
@@ -1219,16 +1338,16 @@ function saveRecovery() {
     settings,
     savedAt: new Date().toISOString()
   };
-  try { localStorage.setItem(STORAGE_KEYS.recovery, JSON.stringify(recovery)); } catch { /* IndexedDB é o armazenamento principal. */ }
-  window.AteroWriteData?.saveRecovery?.(recovery).catch(error => {
+  storageSet(STORAGE_KEYS.recovery, JSON.stringify(recovery));
+  Promise.resolve(window.AteroWriteData?.saveRecovery?.(recovery)).catch(error => {
     console.warn("Falha ao salvar recuperação no IndexedDB:", error);
   });
 }
 
 function clearRecovery() {
-  localStorage.removeItem(STORAGE_KEYS.recovery);
+  storageRemove(STORAGE_KEYS.recovery);
   if (currentDocumentId) {
-    window.AteroWriteData?.clearRecovery?.(currentDocumentId).catch(error => {
+    Promise.resolve(window.AteroWriteData?.clearRecovery?.(currentDocumentId)).catch(error => {
       console.warn("Falha ao limpar recuperação no IndexedDB:", error);
     });
   }
@@ -1236,7 +1355,7 @@ function clearRecovery() {
 
 function maybeShowRecovery(documentItem) {
   const managedRecovery = window.AteroWriteData?.getRecoverySync?.(documentItem.id);
-  const localRecovery = safeParse(localStorage.getItem(STORAGE_KEYS.recovery), null);
+  const localRecovery = safeParse(storageGet(STORAGE_KEYS.recovery), null);
   const candidates = [managedRecovery, localRecovery]
     .filter(item => item?.documentId === documentItem.id)
     .sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
@@ -1276,7 +1395,7 @@ function versionKey() {
 function loadVersions() {
   const managed = window.AteroWriteData?.getVersionsSync?.(currentDocumentId);
   if (Array.isArray(managed) && managed.length) return managed;
-  const versions = safeParse(localStorage.getItem(versionKey()), []);
+  const versions = safeParse(storageGet(versionKey(), "[]"), []);
   return Array.isArray(versions) ? versions : [];
 }
 
@@ -1288,8 +1407,8 @@ function createVersion(name, content) {
     id: createId("version"),
     name,
     content,
-    settings: structuredClone(settings),
-    screenplaySettings: structuredClone(
+    settings: cloneValue(settings),
+    screenplaySettings: cloneValue(
       window.AteroWriteScreenplay?.getSettings?.()
       || loadDocuments().find(item => item.id === currentDocumentId)?.screenplaySettings
       || {}
@@ -1298,8 +1417,8 @@ function createVersion(name, content) {
   });
 
   const trimmed = versions.slice(0, MAX_VERSIONS);
-  try { localStorage.setItem(versionKey(), JSON.stringify(trimmed)); } catch { /* IndexedDB é o armazenamento principal. */ }
-  window.AteroWriteData?.saveVersions?.(currentDocumentId, trimmed).catch(error => {
+  storageSet(versionKey(), JSON.stringify(trimmed));
+  Promise.resolve(window.AteroWriteData?.saveVersions?.(currentDocumentId, trimmed)).catch(error => {
     console.warn("Falha ao salvar versões no IndexedDB:", error);
   });
 }
@@ -1326,7 +1445,8 @@ function renderVersions() {
     preview.addEventListener("click", () => {
       const previewWindow = window.open("", "_blank", "noopener");
       if (!previewWindow) return;
-      previewWindow.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Versão — Atero Write</title><style>body{max-width:780px;margin:50px auto;padding:0 24px;font:16px Arial,sans-serif;line-height:1.6}img{max-width:100%}table{width:100%;border-collapse:collapse}td,th{border:1px solid #bbb;padding:6px}</style></head><body>${version.content}</body></html>`);
+      const safeContent = sanitizeHTML(String(version.content || ""), false);
+      previewWindow.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Versão — Atero Write</title><style>body{max-width:780px;margin:50px auto;padding:0 24px;font:16px Arial,sans-serif;line-height:1.6}img{max-width:100%}table{width:100%;border-collapse:collapse}td,th{border:1px solid #bbb;padding:6px}</style></head><body>${safeContent}</body></html>`);
       previewWindow.document.close();
     });
 
@@ -1357,7 +1477,7 @@ function renderVersions() {
 
 function snapshot() {
   updateCanonicalFromSource(currentSource);
-  return { html: canonicalHTML, settings: structuredClone(settings) };
+  return { html: canonicalHTML, settings: cloneValue(settings) };
 }
 
 function pushUndoSnapshot(force = false) {
@@ -1385,13 +1505,13 @@ function applySnapshot(state) {
 }
 
 function undo() {
-  if (!undoStack.length) return;
+  if (!undoStack.length || !canMutateDocument()) return;
   redoStack.push(snapshot());
   applySnapshot(undoStack.pop());
 }
 
 function redo() {
-  if (!redoStack.length) return;
+  if (!redoStack.length || !canMutateDocument()) return;
   undoStack.push(snapshot());
   applySnapshot(redoStack.pop());
 }
@@ -1451,6 +1571,7 @@ function afterMutation(source = currentSource, { repaginatePages = true } = {}) 
 }
 
 function execCommand(command, value = null) {
+  if (!canMutateDocument()) return false;
   pushUndoSnapshot(true);
   restoreSelection();
   activeEditor()?.focus();
@@ -1459,6 +1580,7 @@ function execCommand(command, value = null) {
   saveSelection();
   afterMutation(currentSource);
   refreshToolbarState();
+  return true;
 }
 
 function refreshToolbarState() {
@@ -1658,6 +1780,7 @@ function updateRuler() {
     marker.dataset.tab = String(tab);
     marker.addEventListener("dblclick", event => {
       event.stopPropagation();
+      if (!canMutateDocument()) return;
       settings.ruler.tabs = settings.ruler.tabs.filter(value => value !== tab);
       updateRuler();
       markDirty();
@@ -1677,6 +1800,7 @@ function applyRulerToSelection() {
 
 function beginMarkerDrag(markerType, event) {
   event.preventDefault();
+  if (!canMutateDocument()) return;
   const page = settings.page;
   const rect = elements.rulerInner.getBoundingClientRect();
   const scale = page.width / rect.width;
@@ -1706,6 +1830,7 @@ function beginMarkerDrag(markerType, event) {
 }
 
 function addTabStop(event) {
+  if (!canMutateDocument()) return;
   if (event.target.closest(".ruler-marker, .ruler-tab-marker")) return;
   const page = settings.page;
   const rect = elements.rulerInner.getBoundingClientRect();
@@ -1842,19 +1967,23 @@ function insertTab(backwards = false, rootHint = null) {
    ========================================================= */
 
 function insertHTML(html) {
+  if (!canMutateDocument()) return false;
   pushUndoSnapshot(true);
   restoreSelection();
   activeEditor()?.focus();
   document.execCommand("insertHTML", false, html);
   afterMutation(currentSource);
+  return true;
 }
 
 function insertText(text) {
+  if (!canMutateDocument()) return false;
   pushUndoSnapshot(true);
   restoreSelection();
   activeEditor()?.focus();
   document.execCommand("insertText", false, text);
   afterMutation(currentSource);
+  return true;
 }
 
 function insertManualPageBreak() {
@@ -1937,11 +2066,6 @@ function injectEditorInteractionStyles() {
     .image-toolbar .image-toolbar-danger:hover{color:#fff;background:var(--write-red,#e63946)}
   `;
   document.head.append(style);
-}
-
-function imageFigureFromNode(node) {
-  const element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-  return element?.closest?.("figure.document-figure") || null;
 }
 
 function imageEditorRoot(figure) {
@@ -2167,6 +2291,20 @@ function handleImageClick(event) {
 function insertImage(file) {
   if (!file) return;
 
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"]);
+  const allowedExtension = /\.(?:png|jpe?g|gif|webp|avif)$/i.test(file.name || "");
+  if ((!allowedTypes.has(file.type) && !(file.type === "" && allowedExtension)) || file.size <= 0) {
+    window.alert("Escolha uma imagem PNG, JPEG, GIF, WebP ou AVIF válida.");
+    elements.imageInput.value = "";
+    return;
+  }
+
+  if (file.size > 12_000_000) {
+    window.alert("A imagem ultrapassa o limite de 12 MB. Comprima o arquivo antes de inseri-lo.");
+    elements.imageInput.value = "";
+    return;
+  }
+
   if (file.size > 2_000_000 && !window.confirm("Esta imagem é grande e será salva dentro do navegador. Continuar?")) {
     elements.imageInput.value = "";
     return;
@@ -2174,6 +2312,11 @@ function insertImage(file) {
 
   const reader = new FileReader();
   reader.addEventListener("load", () => {
+    if (typeof reader.result !== "string" || !reader.result.startsWith("data:image/")) {
+      window.alert("Não foi possível interpretar esta imagem.");
+      elements.imageInput.value = "";
+      return;
+    }
     const alt = escapeHTML(file.name.replace(/\.[^.]+$/, ""));
     const imageId = createId("image");
     insertHTML(`<figure class="document-figure" data-image-id="${imageId}" data-image-align="center" style="width:70%;max-width:100%;margin-left:auto;margin-right:auto"><img src="${reader.result}" alt="${alt}" style="display:block;width:100%;height:auto;max-width:100%"><figcaption contenteditable="true">Legenda da imagem</figcaption></figure><p><br></p>`);
@@ -2184,6 +2327,14 @@ function insertImage(file) {
       const images = root ? [...root.querySelectorAll("figure.document-figure img")] : [];
       selectImage(images.at(-1));
     });
+  });
+  reader.addEventListener("error", () => {
+    console.error("Falha ao ler a imagem:", reader.error);
+    window.alert("Não foi possível ler a imagem selecionada.");
+    elements.imageInput.value = "";
+  });
+  reader.addEventListener("abort", () => {
+    elements.imageInput.value = "";
   });
   reader.readAsDataURL(file);
 }
@@ -2243,7 +2394,11 @@ function insertLink(value, internal = false) {
   restoreSelection();
   const selection = window.getSelection();
   if (!selection) return;
-  const href = internal ? `#${value}` : value;
+  const href = normalizeLinkTarget(value, internal);
+  if (!href) {
+    window.alert("O endereço informado não é válido ou usa um protocolo não permitido.");
+    return;
+  }
   pushUndoSnapshot(true);
 
   if (!selection.isCollapsed) {
@@ -2359,6 +2514,7 @@ function populateHeaderFooterForm() {
 }
 
 function applyPageSetup() {
+  if (!canMutateDocument()) return false;
   const preset = elements.pagePreset.value;
   const orientation = elements.pageOrientation.value;
   let width;
@@ -2391,9 +2547,11 @@ function applyPageSetup() {
   closeDialog(elements.pageSetupDialog);
   repaginate({ preserveSelection: false });
   markDirty();
+  return true;
 }
 
 function applyHeaderFooter() {
+  if (!canMutateDocument()) return false;
   settings.headerFooter = {
     header: elements.headerText.value,
     footer: elements.footerText.value,
@@ -2407,9 +2565,11 @@ function applyHeaderFooter() {
   renderPageChrome();
   closeDialog(elements.headerFooterDialog);
   markDirty();
+  return true;
 }
 
 function updateQuickMargins() {
+  if (!canMutateDocument()) return false;
   settings.page.marginLeft = Math.max(20, Number(elements.pageMarginLeft.value) || 82);
   settings.page.marginRight = Math.max(20, Number(elements.pageMarginRight.value) || 82);
   settings.page.marginTop = Math.max(20, Number(elements.pageMarginTop.value) || 86);
@@ -2418,6 +2578,7 @@ function updateQuickMargins() {
   populatePageSetupForm();
   repaginate({ preserveSelection: true });
   markDirty();
+  return true;
 }
 
 function setViewMode(mode) {
@@ -2471,6 +2632,25 @@ function setEditorsReadOnly(readOnly) {
   elements.flowEditor.contentEditable = String(!readOnly);
   elements.splitEditor.contentEditable = String(!readOnly);
   pageBodies().forEach(body => { body.contentEditable = String(!readOnly); });
+
+  const editingSelector = [
+    "[data-command]", "[data-screenplay-element]", "[data-screenplay-scene-prefix]",
+    "[data-screenplay-scene-time]", "[data-screenplay-character-modifier]",
+    "#blockFormat", "#fontFamily", "#fontSize", "#textColor", "#highlightColor",
+    "#listStyle", "#lineHeight", "#spaceBefore", "#spaceAfter", "#firstLineIndent",
+    "#caseTransform", "#formatPainterButton", "#pageBreakButton", "#horizontalRuleButton",
+    "#textBoxButton", "#tocButton", "#insertLinkButton", "#bookmarkButton", "#footnoteButton",
+    "#citationButton", "#tableButton", "#imageButton", "#captionButton", "#specialCharsButton",
+    "#columnsSelect", "#applyColumnsButton", "#imageInput", "#undoButton", "#redoButton",
+    "#replaceCurrent", "#replaceAll", "#pageSetupButton", "#headerFooterButton", "#sidebarPageSetup",
+    "#pageMarginLeft", "#pageMarginRight", "#pageMarginTop", "#pageMarginBottom",
+    "#screenplayToggleButton", "#screenplayTitlePageButton", "#screenplayElementSelect",
+    "#screenplayPagePreset", "#screenplaySceneNumbersButton", "#screenplaySidebarTitlePage",
+    "#screenplayInsertTitlePage"
+  ].join(",");
+  document.querySelectorAll(editingSelector).forEach(control => {
+    if ("disabled" in control) control.disabled = Boolean(readOnly);
+  });
 }
 
 function toggleReadMode() {
@@ -2581,21 +2761,21 @@ function moveSearch(direction) {
 
 function replaceCurrentMatch() {
   const mark = searchMatches[searchIndex];
-  if (!mark) return;
+  if (!mark || !canMutateDocument()) return;
   pushUndoSnapshot(true);
   mark.replaceWith(document.createTextNode(elements.replaceInput.value));
-  updateCanonicalFromSource(currentSource);
-  markDirty();
+  afterMutation(currentSource, { repaginatePages: false });
+  if (currentSource === "pages") repaginate({ preserveSelection: false });
   performSearch();
 }
 
 function replaceAllMatches() {
-  if (!searchMatches.length) return;
+  if (!searchMatches.length || !canMutateDocument()) return;
   pushUndoSnapshot(true);
   const replacement = elements.replaceInput.value;
   searchMatches.forEach(mark => mark.replaceWith(document.createTextNode(replacement)));
-  updateCanonicalFromSource(currentSource);
-  markDirty();
+  afterMutation(currentSource, { repaginatePages: false });
+  if (currentSource === "pages") repaginate({ preserveSelection: false });
   performSearch();
 }
 
@@ -2622,30 +2802,113 @@ function sanitizeHTML(html, merge = false) {
   const parser = new DOMParser();
   const documentValue = parser.parseFromString(`<div>${html}</div>`, "text/html");
   const root = documentValue.body.firstElementChild;
-  root.querySelectorAll("script, style, iframe, object, embed, meta, link").forEach(node => node.remove());
+  if (!root) return "";
 
-  root.querySelectorAll("*").forEach(node => {
+  const allowedTags = new Set([
+    "A", "ARTICLE", "B", "BIG", "BLOCKQUOTE", "BR", "CITE", "CODE", "COL", "COLGROUP",
+    "DD", "DEL", "DETAILS", "DIV", "DL", "DT", "EM", "FIGCAPTION", "FIGURE", "FONT",
+    "FOOTER", "H1", "H2", "H3", "H4", "H5", "H6", "HEADER", "HR", "I", "IMG", "INS",
+    "KBD", "LI", "MAIN", "MARK", "NAV", "OL", "P", "PRE", "Q", "S", "SAMP", "SECTION",
+    "SMALL", "SPAN", "STRIKE", "STRONG", "SUB", "SUMMARY", "SUP", "TABLE", "TBODY", "TD",
+    "TFOOT", "TH", "THEAD", "TR", "U", "UL", "VAR"
+  ]);
+  const allowedAttributes = new Set([
+    "alt", "class", "colspan", "contenteditable", "dir", "height", "href", "id", "lang", "name",
+    "rel", "reversed", "role", "rowspan", "scope", "spellcheck", "src", "start", "style", "target",
+    "title", "type", "width"
+  ]);
+  const blockedTags = "script, style, iframe, object, embed, meta, link, base, form, input, button, textarea, select, option, svg";
+  root.querySelectorAll(blockedTags).forEach(node => node.remove());
+
+  [...root.querySelectorAll("*")].forEach(node => {
+    if (!allowedTags.has(node.tagName)) {
+      node.replaceWith(...node.childNodes);
+      return;
+    }
+
     [...node.attributes].forEach(attribute => {
       const name = attribute.name.toLowerCase();
-      if (name.startsWith("on")) node.removeAttribute(attribute.name);
-      if (merge && !["href", "src", "alt", "colspan", "rowspan"].includes(name)) node.removeAttribute(attribute.name);
+      const isDataOrAria = name.startsWith("data-") || name.startsWith("aria-");
+      if (
+        name.startsWith("on") ||
+        (!allowedAttributes.has(name) && !isDataOrAria) ||
+        (merge && !["href", "src", "alt", "colspan", "rowspan"].includes(name))
+      ) {
+        node.removeAttribute(attribute.name);
+      }
     });
 
+    if (node.hasAttribute("style") && /(?:expression\s*\(|url\s*\(|@import|-moz-binding|behavior\s*:)/i.test(node.getAttribute("style"))) {
+      node.removeAttribute("style");
+    }
+
     if (node.tagName === "A") {
-      node.setAttribute("rel", "noopener noreferrer");
+      const safeHref = sanitizeURLAttribute(node.getAttribute("href"), "href");
+      if (safeHref) node.setAttribute("href", safeHref);
+      else node.removeAttribute("href");
+
+      if (node.getAttribute("target") === "_blank") {
+        node.setAttribute("rel", "noopener noreferrer");
+      } else {
+        node.removeAttribute("target");
+        node.removeAttribute("rel");
+      }
+    }
+
+    if (node.tagName === "IMG") {
+      const safeSrc = sanitizeURLAttribute(node.getAttribute("src"), "src");
+      if (safeSrc) node.setAttribute("src", safeSrc);
+      else node.removeAttribute("src");
     }
   });
 
   return root.innerHTML;
 }
 
+function sanitizeURLAttribute(value, kind = "href") {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+
+  const compact = trimmed.replace(/[\u0000-\u0020\u007f]+/g, "");
+  if (/^(?:javascript|vbscript|file|filesystem):/i.test(compact)) return "";
+
+  if (kind === "src" && /^data:/i.test(compact)) {
+    return /^data:image\/(?:png|jpe?g|gif|webp|avif);base64,/i.test(compact) ? trimmed : "";
+  }
+
+  if (/^(?:https?:|mailto:|tel:|blob:)/i.test(compact)) return trimmed;
+  if (/^(?:#|\/|\.\/|\.\.\/)/.test(trimmed)) return trimmed;
+  return /^[a-z][a-z0-9+.-]*:/i.test(compact) ? "" : trimmed;
+}
+
+function normalizeLinkTarget(value, internal = false) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+
+  if (internal) {
+    const id = trimmed.replace(/^#/, "");
+    return /^[A-Za-z][\w:.-]*$/.test(id) ? `#${id}` : "";
+  }
+
+  if (/^(?:javascript|vbscript|data|file|filesystem):/i.test(trimmed.replace(/[\u0000-\u0020\u007f]+/g, ""))) {
+    return "";
+  }
+  if (/^(?:https?:|mailto:|tel:|#|\/|\.\/|\.\.\/)/i.test(trimmed)) return trimmed;
+  if (/^(?:www\.|[^\s/]+\.[A-Za-z]{2,}(?:\/|$))/.test(trimmed)) return `https://${trimmed}`;
+  return "";
+}
+
 function showPasteOptions(event) {
   event.preventDefault();
+  if (!canMutateDocument()) return;
   saveSelection();
+  const transfer = event.clipboardData || event.dataTransfer;
   pendingPaste = {
-    html: event.clipboardData?.getData("text/html") || "",
-    text: event.clipboardData?.getData("text/plain") || ""
+    html: transfer?.getData("text/html") || "",
+    text: transfer?.getData("text/plain") || ""
   };
+
+  if (!pendingPaste.html && !pendingPaste.text) return;
 
   const selection = window.getSelection();
   const rect = selection?.rangeCount ? selection.getRangeAt(0).getBoundingClientRect() : null;
@@ -2654,8 +2917,56 @@ function showPasteOptions(event) {
   elements.pastePopover.style.top = `${Math.min(innerHeight - 170, Math.max(8, (rect?.bottom || 20) + 8))}px`;
 }
 
+function placeDropCaret(event, root) {
+  let node = null;
+  let offset = 0;
+
+  if (document.caretPositionFromPoint) {
+    const position = document.caretPositionFromPoint(event.clientX, event.clientY);
+    node = position?.offsetNode || null;
+    offset = position?.offset || 0;
+  } else if (document.caretRangeFromPoint) {
+    const pointRange = document.caretRangeFromPoint(event.clientX, event.clientY);
+    node = pointRange?.startContainer || null;
+    offset = pointRange?.startOffset || 0;
+  }
+
+  if (!node || !(root === node || root.contains(node))) return false;
+
+  try {
+    const range = document.createRange();
+    range.setStart(node, offset);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    savedRange = range.cloneRange();
+    currentSource = sourceFromRoot(root);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function handleEditorDrop(event) {
+  event.preventDefault();
+  if (!canMutateDocument()) return;
+
+  const root = event.currentTarget;
+  root.focus({ preventScroll: true });
+  if (!placeDropCaret(event, root)) placeCaretAtEnd(root);
+
+  const file = [...(event.dataTransfer?.files || [])][0];
+  if (file) {
+    insertImage(file);
+    return;
+  }
+
+  showPasteOptions(event);
+}
+
 function completePaste(mode) {
-  if (!pendingPaste) return;
+  if (!pendingPaste || !canMutateDocument()) return;
   restoreSelection();
   pushUndoSnapshot(true);
 
@@ -2685,12 +2996,14 @@ async function contextAction(action) {
   restoreSelection();
 
   if (["cut", "copy"].includes(action)) {
+    if (action === "cut" && !canMutateDocument()) return;
     document.execCommand(action);
     if (action === "cut") afterMutation(currentSource);
     return;
   }
 
   if (["paste", "pastePlain"].includes(action)) {
+    if (!canMutateDocument()) return;
     try {
       const text = await navigator.clipboard.readText();
       document.execCommand("insertText", false, text);
@@ -2753,12 +3066,16 @@ function renderSymbols() {
    BIND DOS EDITORES
    ========================================================= */
 
-function handleEditorBeforeInput() {
+function handleEditorBeforeInput(event) {
+  if (!canMutateDocument()) {
+    event.preventDefault();
+    return;
+  }
   pushUndoSnapshot(false);
 }
 
 function handleEditorInput(event, source) {
-  if (settings.view.read) return;
+  if (!canMutateDocument()) return;
   currentSource = source;
   clearSearchHighlights(false);
   updateCanonicalFromSource(source);
@@ -2941,6 +3258,7 @@ function bindEditorRoot(root, source) {
   root.addEventListener("input", event => handleEditorInput(event, source));
   root.addEventListener("keydown", handleEditorKeydown);
   root.addEventListener("paste", showPasteOptions);
+  root.addEventListener("drop", handleEditorDrop);
   root.addEventListener("click", handleImageClick);
   root.addEventListener("dblclick", event => {
     const image = event.target.closest("figure.document-figure img");
@@ -3261,6 +3579,18 @@ function registerGlobalEvents() {
       saveCurrentDocument(false);
     }
   });
+  window.addEventListener("pagehide", () => {
+    if (isDirty) {
+      saveRecovery();
+      saveCurrentDocument(false);
+    }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && isDirty) {
+      saveRecovery();
+      saveCurrentDocument(false);
+    }
+  });
 }
 
 function registerEvents() {
@@ -3282,8 +3612,13 @@ function registerEvents() {
    ========================================================= */
 
 async function initialize() {
-  document.execCommand("styleWithCSS", false, true);
-  document.execCommand("defaultParagraphSeparator", false, "p");
+  validateEditorInterface();
+  try {
+    document.execCommand("styleWithCSS", false, true);
+    document.execCommand("defaultParagraphSeparator", false, "p");
+  } catch (error) {
+    console.warn("O navegador não aceitou a configuração inicial de edição:", error);
+  }
   injectEditorInteractionStyles();
   renderSymbols();
   registerEvents();
@@ -3323,6 +3658,8 @@ window.AteroWriteEditor = {
     return true;
   },
   saveNow: () => saveCurrentDocument(true),
+  requestSave: () => saveCurrentDocument(false),
+  isReadOnly: () => documentReadOnlyBecauseLock || settings.view.read,
   setLockReadOnly: setDocumentLockState
 };
 
