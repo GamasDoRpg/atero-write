@@ -180,8 +180,12 @@
     suggestionPopup: $("#screenplayCharacterSuggestions")
   };
 
-  if (!elements.toggleButton || !elements.elementSelect) {
-    console.warn("A interface do modo roteiro não foi encontrada.");
+  const missingInterface = Object.entries(elements)
+    .filter(([, element]) => !element)
+    .map(([name]) => name);
+
+  if (missingInterface.length) {
+    console.error(`A interface do modo roteiro está incompleta. Elementos ausentes: ${missingInterface.join(", ")}.`);
     return;
   }
 
@@ -203,6 +207,52 @@
     }
   }
 
+  function storageGet(key, fallback = null) {
+    try {
+      const value = localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch (error) {
+      console.warn(`Não foi possível ler "${key}" do armazenamento local:`, error);
+      return fallback;
+    }
+  }
+
+  function storageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.warn(`Não foi possível gravar "${key}" no armazenamento local:`, error);
+      return false;
+    }
+  }
+
+  function normalizeScreenplaySettings(source = {}) {
+    const revision = Object.prototype.hasOwnProperty.call(REVISION_COLORS, source.revision)
+      ? source.revision
+      : DEFAULT_SCREENPLAY.revision;
+    const cleanText = (value, fallback = "", maxLength = 5000) =>
+      typeof value === "string" ? value.slice(0, maxLength) : fallback;
+
+    return {
+      enabled: typeof source.enabled === "boolean" ? source.enabled : DEFAULT_SCREENPLAY.enabled,
+      pagePreset: source.pagePreset === "A4" ? "A4" : "Letter",
+      pageConfigured: typeof source.pageConfigured === "boolean" ? source.pageConfigured : false,
+      title: cleanText(source.title),
+      author: cleanText(source.author),
+      draftName: cleanText(source.draftName, DEFAULT_SCREENPLAY.draftName, 250),
+      draftDate: /^\d{4}-\d{2}-\d{2}$/.test(source.draftDate || "")
+        ? source.draftDate
+        : DEFAULT_SCREENPLAY.draftDate,
+      revision,
+      contact: cleanText(source.contact),
+      copyright: cleanText(source.copyright, "", 1000),
+      sceneNumbers: typeof source.sceneNumbers === "boolean"
+        ? source.sceneNumbers
+        : DEFAULT_SCREENPLAY.sceneNumbers
+    };
+  }
+
   function escapeHTML(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -219,24 +269,34 @@
   function loadDocuments() {
     const managed = window.AteroWriteData?.getDocumentsSync?.();
     if (Array.isArray(managed)) return managed;
-    const documents = safeParse(localStorage.getItem(DOCUMENTS_KEY), []);
+    const documents = safeParse(storageGet(DOCUMENTS_KEY, "[]"), []);
     return Array.isArray(documents) ? documents : [];
   }
 
   function loadScreenplaySettings() {
     const record = loadDocuments().find(item => item.id === currentDocumentId());
-    return {
-      ...DEFAULT_SCREENPLAY,
-      ...(record?.screenplaySettings || {})
-    };
+    return normalizeScreenplaySettings(record?.screenplaySettings || {});
   }
 
   function persistScreenplaySettings() {
     const documentId = currentDocumentId();
-    if (window.AteroWriteData && !window.AteroWriteData.canWrite(documentId)) {
+    if (!documentId) return false;
+    if (window.AteroWriteEditor?.isReadOnly?.() || (window.AteroWriteData && !window.AteroWriteData.canWrite(documentId))) {
       document.dispatchEvent(new CustomEvent("atero:lock-conflict", { detail: { documentId } }));
-      return;
+      return false;
     }
+
+    document.dispatchEvent(new CustomEvent("atero:screenplay-settings", {
+      detail: { ...state }
+    }));
+
+    if (
+      window.AteroWriteEditor?.getCurrentDocumentId?.() === documentId &&
+      typeof window.AteroWriteEditor.requestSave === "function"
+    ) {
+      return window.AteroWriteEditor.requestSave();
+    }
+
     const documents = loadDocuments();
     const index = documents.findIndex(item => item.id === documentId);
 
@@ -249,15 +309,22 @@
         updatedAt: new Date().toISOString(),
         revision: Number(documents[index].revision || 0) + 1
       };
-      try { localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(documents)); } catch { /* IndexedDB é o armazenamento principal. */ }
-      window.AteroWriteData?.saveDocuments?.(documents).catch(error => {
+      storageSet(DOCUMENTS_KEY, JSON.stringify(documents));
+      Promise.resolve(window.AteroWriteData?.saveDocuments?.(documents)).catch(error => {
         console.warn("Não foi possível salvar configurações do roteiro no IndexedDB:", error);
       });
     }
+    return index >= 0;
+  }
 
-    document.dispatchEvent(new CustomEvent("atero:screenplay-settings", {
-      detail: { ...state }
-    }));
+  function canEditScreenplay() {
+    const documentId = currentDocumentId();
+    if (!documentId || window.AteroWriteEditor?.isReadOnly?.()) return false;
+    if (window.AteroWriteData && !window.AteroWriteData.canWrite(documentId)) {
+      document.dispatchEvent(new CustomEvent("atero:lock-conflict", { detail: { documentId } }));
+      return false;
+    }
+    return true;
   }
 
   function editorRootFromNode(node) {
@@ -283,14 +350,6 @@
 
     const pages = $$(".page-body");
     return pages.length ? pages : [elements.flowEditor].filter(Boolean);
-  }
-
-  function allDocumentRoots() {
-    return [
-      ...$$(".page-body"),
-      elements.flowEditor,
-      elements.splitEditor
-    ].filter(Boolean);
   }
 
   function selectionInsideEditor(selection = window.getSelection()) {
@@ -536,18 +595,29 @@
   }
 
   function emitEditorMutation(root = activeEditorRoot()) {
-    if (!root) return;
+    if (!root || !canEditScreenplay()) return false;
     internalMutation = true;
-    root.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      inputType: "formatBlock",
-      data: null
-    }));
-    internalMutation = false;
+    try {
+      let event;
+      try {
+        event = new InputEvent("input", {
+          bubbles: true,
+          inputType: "formatBlock",
+          data: null
+        });
+      } catch {
+        event = new Event("input", { bubbles: true });
+      }
+      root.dispatchEvent(event);
+    } finally {
+      internalMutation = false;
+    }
     scheduleSceneRefresh();
+    return true;
   }
 
   function applyType(type, blocks = null, { focus = true } = {}) {
+    if (!canEditScreenplay()) return false;
     if (!state.enabled && type !== "normal") enableScreenplayMode();
     restoreSelection();
 
@@ -570,6 +640,7 @@
       placeCaret(targets.at(-1), true);
     }
     updateActiveElementUI();
+    return true;
   }
 
   function blockAtCurrentSelection() {
@@ -664,6 +735,7 @@
   }
 
   function insertSceneToken(token, mode = "prefix") {
+    if (!canEditScreenplay()) return false;
     if (!state.enabled) enableScreenplayMode();
     restoreSelection();
     let block = blockAtCurrentSelection();
@@ -687,9 +759,11 @@
     applyTypeToBlock(block, "scene");
     placeCaret(block, true);
     emitEditorMutation(editorRootFromNode(block));
+    return true;
   }
 
   function insertCharacterModifier(modifier) {
+    if (!canEditScreenplay()) return false;
     if (!state.enabled) enableScreenplayMode();
     restoreSelection();
     const block = blockAtCurrentSelection();
@@ -700,6 +774,7 @@
     block.textContent = `${current}${current ? " " : ""}(${modifier})`.toLocaleUpperCase("pt-BR");
     placeCaret(block, true);
     emitEditorMutation(editorRootFromNode(block));
+    return true;
   }
 
   function configurePagePreset(preset) {
@@ -738,6 +813,7 @@
   }
 
   function ensureInitialScreenplayBlock() {
+    if (!canEditScreenplay()) return false;
     restoreSelection();
     const root = activeEditorRoot();
     if (!root) return;
@@ -757,9 +833,11 @@
       applyTypeToBlock(block, "action");
       emitEditorMutation(root);
     }
+    return true;
   }
 
   function enableScreenplayMode() {
+    if (!canEditScreenplay()) return false;
     state.enabled = true;
 
     if (!state.pageConfigured) {
@@ -771,13 +849,16 @@
     persistScreenplaySettings();
     applyModeUI();
     ensureInitialScreenplayBlock();
+    return true;
   }
 
   function toggleScreenplayMode() {
+    if (!canEditScreenplay()) return false;
     state.enabled = !state.enabled;
     persistScreenplaySettings();
     applyModeUI();
     if (state.enabled) ensureInitialScreenplayBlock();
+    return true;
   }
 
   function revisionLabel(value) {
@@ -848,7 +929,7 @@
   }
 
   function readSettingsDialog() {
-    state = {
+    state = normalizeScreenplaySettings({
       ...state,
       title: elements.dialogTitle.value.trim(),
       author: elements.dialogAuthor.value.trim(),
@@ -859,7 +940,7 @@
       contact: elements.dialogContact.value.trim(),
       copyright: elements.dialogCopyright.value.trim(),
       sceneNumbers: elements.dialogSceneNumbers.checked
-    };
+    });
   }
 
   function titlePageHTML() {
@@ -888,6 +969,7 @@
   }
 
   function insertOrUpdateTitlePage() {
+    if (!canEditScreenplay()) return false;
     if (!state.enabled) enableScreenplayMode();
     readSettingsDialog();
     persistScreenplaySettings();
@@ -898,9 +980,9 @@
     const firstRoot = roots[0] || activeEditorRoot();
     if (!firstRoot) return;
 
-    const existing = allDocumentRoots()
-      .flatMap(root => [...root.querySelectorAll("[data-screenplay-title-page='true']")])
-      .find(Boolean);
+    // Atualiza a cópia que está servindo de fonte ao editor. Alterar uma cópia
+    // invisível faria a capa sumir na próxima sincronização entre modos.
+    const existing = firstRoot.querySelector("[data-screenplay-title-page='true']");
 
     const template = document.createElement("template");
     template.innerHTML = titlePageHTML().trim();
@@ -930,9 +1012,10 @@
     emitEditorMutation(firstRoot);
     if (elements.dialog.open) elements.dialog.close();
     requestAnimationFrame(() => {
-      const firstScene = $$(".screenplay-scene-heading")[0];
+      const firstScene = firstRoot.querySelector(".screenplay-scene-heading");
       if (firstScene) placeCaret(firstScene, false);
     });
+    return true;
   }
 
   function screenplayBlocksFromRoots(roots = visibleDocumentRoots()) {
@@ -1046,27 +1129,27 @@
     if (!scenes.length) return;
 
     const current = blockAtCurrentSelection();
-    let targetIndex;
+    let target = null;
 
     if (!current) {
-      targetIndex = direction > 0 ? 0 : scenes.length - 1;
+      target = direction > 0 ? scenes[0] : scenes.at(-1);
     } else {
-      const currentIndex = scenes.findIndex(scene => {
-        if (scene === current) return true;
-        return Boolean(scene.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING);
-      });
-
-      if (direction > 0) {
-        targetIndex = currentIndex < 0
-          ? 0
-          : Math.min(scenes.length - 1, currentIndex + (scenes[currentIndex] === current ? 1 : 0));
+      const directIndex = scenes.indexOf(current);
+      if (directIndex >= 0) {
+        const targetIndex = Math.max(0, Math.min(scenes.length - 1, directIndex + Math.sign(direction)));
+        target = scenes[targetIndex];
+      } else if (direction > 0) {
+        target = scenes.find(scene => Boolean(
+          current.compareDocumentPosition(scene) & Node.DOCUMENT_POSITION_FOLLOWING
+        )) || scenes.at(-1);
       } else {
-        const direct = scenes.indexOf(current);
-        targetIndex = direct > 0 ? direct - 1 : Math.max(0, currentIndex - 1);
+        target = scenes.filter(scene => Boolean(
+          scene.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING
+        )).at(-1) || scenes[0];
       }
     }
 
-    const target = scenes[targetIndex] || scenes[0];
+    if (!target) return;
     target.scrollIntoView({ behavior: "smooth", block: "center" });
     placeCaret(target, true);
     updateActiveElementUI();
@@ -1182,12 +1265,15 @@
   }
 
   function toggleSceneNumbers() {
+    if (!canEditScreenplay()) return false;
     state.sceneNumbers = !state.sceneNumbers;
     persistScreenplaySettings();
     applyModeUI();
+    return true;
   }
 
   function saveDialogSettings({ insertTitlePage = false } = {}) {
+    if (!canEditScreenplay()) return false;
     const previousPreset = state.pagePreset;
     readSettingsDialog();
     if (!state.enabled) state.enabled = true;
@@ -1207,6 +1293,7 @@
     } else if (elements.dialog.open) {
       elements.dialog.close();
     }
+    return true;
   }
 
   function addScreenplayContextMenuItems() {
@@ -1235,7 +1322,7 @@
   }
 
   function handleCapturedKeydown(event) {
-    if (!state.enabled) return;
+    if (!state.enabled || !canEditScreenplay()) return;
     const root = editorRootFromNode(event.target);
     if (!root || event.target.closest("[data-screenplay-title-page='true']")) return;
 
@@ -1303,6 +1390,7 @@
   }
 
   function handleFocusOut(event) {
+    if (!canEditScreenplay()) return;
     const block = topLevelBlock(editorRootFromNode(event.target), event.target);
     if (!block) return;
     const before = block.innerHTML;
@@ -1424,7 +1512,8 @@
   window.AteroWriteScreenplay = {
     getSettings: () => ({ ...state }),
     setSettings: (nextSettings = {}, options = {}) => {
-      state = { ...DEFAULT_SCREENPLAY, ...nextSettings };
+      if (options.persist !== false && !canEditScreenplay()) return { ...state };
+      state = normalizeScreenplaySettings({ ...DEFAULT_SCREENPLAY, ...nextSettings });
       applyModeUI();
       if (state.enabled && state.pageConfigured) configurePagePreset(state.pagePreset);
       scheduleSceneRefresh();
